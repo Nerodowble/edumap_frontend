@@ -22,7 +22,7 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="px-6 py-6 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="EduMap IA" width={40} height={40} />
+          <Image src="/logo.png" alt="EduMap IA" width={52} height={52} />
           <div>
             <h1 className="font-bold text-gray-900 text-lg leading-tight">EduMap IA</h1>
             <p className="text-xs text-gray-500">v0.1 MVP</p>

@@ -34,12 +34,10 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm card">
-        <div className="flex items-center gap-3 mb-6">
-          <Image src="/logo.png" alt="EduMap IA" width={48} height={48} />
-          <div>
-            <h1 className="font-bold text-gray-900 text-xl">EduMap IA</h1>
-            <p className="text-xs text-gray-500">Entrar na plataforma</p>
-          </div>
+        <div className="flex flex-col items-center mb-8">
+          <Image src="/logo.png" alt="EduMap IA" width={96} height={96} className="mb-3" />
+          <h1 className="font-bold text-gray-900 text-2xl">EduMap IA</h1>
+          <p className="text-sm text-gray-500">Entrar na plataforma</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
