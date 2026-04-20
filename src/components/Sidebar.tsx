@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getUser, logout, ROLE_LABEL } from "@/lib/auth";
@@ -21,7 +22,7 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="px-6 py-6 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <span className="text-2xl">🗺️</span>
+          <Image src="/logo.png" alt="EduMap IA" width={40} height={40} />
           <div>
             <h1 className="font-bold text-gray-900 text-lg leading-tight">EduMap IA</h1>
             <p className="text-xs text-gray-500">v0.1 MVP</p>

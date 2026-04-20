@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { login as apiLogin, getMe } from "@/lib/api";
 import { setToken, setUser } from "@/lib/auth";
@@ -34,7 +35,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm card">
         <div className="flex items-center gap-3 mb-6">
-          <span className="text-3xl">🗺️</span>
+          <Image src="/logo.png" alt="EduMap IA" width={48} height={48} />
           <div>
             <h1 className="font-bold text-gray-900 text-xl">EduMap IA</h1>
             <p className="text-xs text-gray-500">Entrar na plataforma</p>
