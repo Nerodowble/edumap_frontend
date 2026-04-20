@@ -3,8 +3,8 @@
 import Link from "next/link";
 
 const STEPS = [
-  { n: 1 as const, href: "/analisar",  label: "Analisar Prova",  desc: "Upload + OCR + Bloom" },
-  { n: 2 as const, href: "/turmas",    label: "Turmas e Alunos", desc: "Cadastro da turma" },
+  { n: 1 as const, href: "/turmas",    label: "Turmas e Alunos", desc: "Cadastro da turma"    },
+  { n: 2 as const, href: "/analisar",  label: "Analisar Prova",  desc: "Upload + OCR + Bloom" },
   { n: 3 as const, href: "/lancar",    label: "Lançamento",      desc: "Respostas dos alunos" },
   { n: 4 as const, href: "/relatorio", label: "Relatório",       desc: "Diagnóstico da turma" },
 ];

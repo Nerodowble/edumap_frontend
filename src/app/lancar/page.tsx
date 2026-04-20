@@ -38,8 +38,34 @@ export default function LancarPage() {
 
   useEffect(() => { getTurmas().then(setTurmas).catch(() => {}); }, []);
 
+  // Restaurar seleção persistida do localStorage
+  useEffect(() => {
+    const savedTurma = typeof window !== "undefined" ? localStorage.getItem("app_turmaId") : null;
+    if (!savedTurma) return;
+    const tid = Number(savedTurma);
+    setTurmaId(tid);
+    const savedProva = localStorage.getItem("app_provaId");
+    Promise.all([getAlunos(tid), getProvas(tid)]).then(([al, pr]) => {
+      setAlunos(al);
+      setProvas(pr);
+      if (savedProva && pr.some(p => p.id === Number(savedProva))) {
+        const pid = Number(savedProva);
+        setProvaId(pid);
+        return Promise.all([getQuestoes(pid), getGabarito(pid)]);
+      }
+    }).then(result => {
+      if (result) {
+        const [qs, gab] = result;
+        setQuestoes(qs);
+        setGabarito(gab as Record<string, string>);
+      }
+    }).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function handleTurmaChange(id: number) {
     setTurmaId(id);
+    localStorage.setItem("app_turmaId", String(id));
+    localStorage.removeItem("app_provaId");
     setProvaId(null);
     setQuestoes([]);
     setGabarito({});
@@ -54,6 +80,7 @@ export default function LancarPage() {
 
   async function handleProvaChange(id: number) {
     setProvaId(id);
+    localStorage.setItem("app_provaId", String(id));
     setRespostas({});
     setOcrCells({});
     setOcrFeedback({});

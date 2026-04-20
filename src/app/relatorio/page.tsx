@@ -26,19 +26,32 @@ export default function RelatorioPage() {
   useEffect(() => {
     getTurmas().then(ts => {
       setTurmas(ts);
-      if (ts.length > 0) setTurmaId(ts[0].id);
+      if (ts.length > 0) {
+        const saved = typeof window !== "undefined" ? Number(localStorage.getItem("app_turmaId")) || null : null;
+        const preferred = saved && ts.some(t => t.id === saved) ? saved : ts[0].id;
+        setTurmaId(preferred);
+      }
     }).catch(() => {});
   }, []);
 
   useEffect(() => {
     if (!turmaId) return;
+    localStorage.setItem("app_turmaId", String(turmaId));
     setProvas([]);
     setProvaId(null);
     getProvas(turmaId).then(ps => {
       setProvas(ps);
-      if (ps.length > 0) setProvaId(ps[0].id);
+      if (ps.length > 0) {
+        const saved = typeof window !== "undefined" ? Number(localStorage.getItem("app_provaId")) || null : null;
+        const preferred = saved && ps.some(p => p.id === saved) ? saved : ps[0].id;
+        setProvaId(preferred);
+      }
     }).catch(() => {});
   }, [turmaId]);
+
+  useEffect(() => {
+    if (provaId) localStorage.setItem("app_provaId", String(provaId));
+  }, [provaId]);
 
   useEffect(() => {
     if (!provaId) return;

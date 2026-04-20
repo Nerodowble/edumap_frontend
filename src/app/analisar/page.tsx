@@ -56,7 +56,7 @@ export default function AnalisarPage() {
 
   return (
     <div>
-      <FlowBanner step={1} />
+      <FlowBanner step={2} />
 
       <h1 className="text-3xl font-bold text-gray-900 mb-1">🗺️ EduMap IA</h1>
       <p className="text-gray-500 mb-5">Diagnóstico taxonômico inteligente de aprendizagem</p>

@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV = [
-  { href: "/analisar",  label: "Analisar Prova",       icon: "📤" },
-  { href: "/turmas",    label: "Turmas e Alunos",       icon: "👥" },
-  { href: "/lancar",    label: "Lançamento",            icon: "📝" },
-  { href: "/relatorio", label: "Relatório do Professor", icon: "📊" },
+  { href: "/",          label: "Início",                icon: "🏠", exact: true },
+  { href: "/turmas",    label: "Turmas e Alunos",       icon: "👥", exact: false },
+  { href: "/analisar",  label: "Analisar Prova",        icon: "📤", exact: false },
+  { href: "/lancar",    label: "Lançamento",            icon: "📝", exact: false },
+  { href: "/relatorio", label: "Relatório do Professor", icon: "📊", exact: false },
 ];
 
 export default function Sidebar() {
@@ -28,8 +29,8 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {NAV.map(({ href, label, icon }) => {
-          const active = path.startsWith(href);
+        {NAV.map(({ href, label, icon, exact }) => {
+          const active = exact ? path === href : path.startsWith(href);
           return (
             <Link
               key={href}
