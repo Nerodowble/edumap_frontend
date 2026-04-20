@@ -78,7 +78,7 @@ export default function Sidebar() {
       {/* Footer */}
       <div className="px-6 py-3 border-t border-gray-100">
         <p className="text-xs text-gray-400 leading-relaxed">
-          100% local · sem IA paga<br />código aberto · extensão universitária
+          EduMap IA · extensão universitária<br />diagnóstico educacional · código aberto
         </p>
       </div>
     </aside>
