@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { getUser, logout, ROLE_LABEL } from "@/lib/auth";
 
 const NAV = [
   { href: "/",          label: "Início",                icon: "🏠", exact: true },
@@ -13,6 +14,7 @@ const NAV = [
 
 export default function Sidebar() {
   const path = usePathname();
+  const user = getUser();
 
   return (
     <aside className="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 flex flex-col z-10">
@@ -48,8 +50,33 @@ export default function Sidebar() {
         })}
       </nav>
 
+      {/* User info + logout */}
+      {user && (
+        <div className="px-4 py-3 border-t border-gray-100">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-800 truncate">{user.nome}</p>
+              <span className="inline-block text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-medium mt-0.5">
+                {ROLE_LABEL[user.role] ?? user.role}
+              </span>
+            </div>
+            <button
+              onClick={logout}
+              title="Sair"
+              className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0 mt-0.5"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-gray-100">
+      <div className="px-6 py-3 border-t border-gray-100">
         <p className="text-xs text-gray-400 leading-relaxed">
           100% local · sem IA paga<br />código aberto · extensão universitária
         </p>

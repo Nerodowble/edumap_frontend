@@ -2,6 +2,7 @@ import type {
   Turma, Aluno, Prova, PipelineResult,
   AlunoReport, DrilldownData, Questao,
 } from "./types";
+import { getToken, removeToken } from "./auth";
 
 const BASE =
   typeof window !== "undefined"
@@ -9,13 +10,43 @@ const BASE =
     : (process.env.API_URL ?? "http://localhost:8000");
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, init);
+  const token = getToken();
+  const headers: Record<string, string> = {
+    ...(init?.headers as Record<string, string>),
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE}${path}`, { ...init, headers });
+
+  if (res.status === 401) {
+    removeToken();
+    if (typeof window !== "undefined") window.location.href = "/login";
+    throw new Error("Sessão expirada.");
+  }
   if (!res.ok) {
     const msg = await res.text().catch(() => res.statusText);
     throw new Error(`[${res.status}] ${path}: ${msg}`);
   }
   return res.json() as Promise<T>;
 }
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+export const register = (data: { nome: string; email: string; senha: string; escola: string }) =>
+  req<{ token: string; role: string; nome: string }>("/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+export const login = (data: { email: string; senha: string }) =>
+  req<{ token: string; role: string; nome: string }>("/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+export const getMe = () =>
+  req<{ id: number; nome: string; email: string; role: string; escola: string }>("/auth/me");
 
 // ── Turmas ────────────────────────────────────────────────────────────────────
 export const getTurmas = () => req<Turma[]>("/turmas");
