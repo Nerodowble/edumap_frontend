@@ -134,3 +134,35 @@ export interface AlunoPontosCriticos {
   nome: string;
   criticos: PontoCritico[];
 }
+
+export interface UsuarioAdmin {
+  id: number;
+  nome: string;
+  email: string;
+  role: "admin_geral" | "admin_escolar" | "professor";
+  escola: string | null;
+  criado_em: string;
+}
+
+export interface EscolaAgg {
+  escola: string;
+  usuarios: number;
+  turmas: number;
+}
+
+export interface TaxonomiaNoFlat {
+  id: number;
+  codigo: string;
+  label: string;
+  nivel: number;
+  parent_id: number | null;
+  palavras_chave: string;
+  materia?: string;
+}
+
+export interface TaxonomiaStats {
+  etapa: string;
+  total_nos: number;
+  por_materia: Array<{ materia: string; total: number }>;
+  por_nivel: Array<{ nivel: number; total: number }>;
+}

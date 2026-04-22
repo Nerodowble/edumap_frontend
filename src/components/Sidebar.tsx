@@ -6,11 +6,12 @@ import { usePathname } from "next/navigation";
 import { getUser, logout, ROLE_LABEL } from "@/lib/auth";
 
 const NAV = [
-  { href: "/",          label: "Início",                icon: "🏠", exact: true },
-  { href: "/turmas",    label: "Turmas e Alunos",       icon: "👥", exact: false },
-  { href: "/analisar",  label: "Analisar Prova",        icon: "📤", exact: false },
-  { href: "/lancar",    label: "Lançamento",            icon: "📝", exact: false },
-  { href: "/relatorio", label: "Relatório do Professor", icon: "📊", exact: false },
+  { href: "/",          label: "Início",                icon: "🏠", exact: true,  adminOnly: false },
+  { href: "/turmas",    label: "Turmas e Alunos",       icon: "👥", exact: false, adminOnly: false },
+  { href: "/analisar",  label: "Analisar Prova",        icon: "📤", exact: false, adminOnly: false },
+  { href: "/lancar",    label: "Lançamento",            icon: "📝", exact: false, adminOnly: false },
+  { href: "/relatorio", label: "Relatório do Professor", icon: "📊", exact: false, adminOnly: false },
+  { href: "/admin",     label: "Administração",          icon: "⚙️", exact: false, adminOnly: true  },
 ];
 
 export default function Sidebar() {
@@ -32,7 +33,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {NAV.map(({ href, label, icon, exact }) => {
+        {NAV.filter(n => !n.adminOnly || user?.role === "admin_geral").map(({ href, label, icon, exact }) => {
           const active = exact ? path === href : path.startsWith(href);
           return (
             <Link

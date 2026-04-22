@@ -2,6 +2,7 @@ import type {
   Turma, Aluno, Prova, PipelineResult,
   AlunoReport, DrilldownData, Questao,
   TaxonomiaRelatorio, AlunoPontosCriticos,
+  UsuarioAdmin, EscolaAgg, TaxonomiaNoFlat, TaxonomiaStats,
 } from "./types";
 import { getToken, removeToken } from "./auth";
 
@@ -95,6 +96,38 @@ export const getRelatorioTaxonomia = (provaId: number) =>
 
 export const getPontosCriticos = (provaId: number) =>
   req<AlunoPontosCriticos[]>(`/provas/${provaId}/relatorio/pontos-criticos`);
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+export const adminListUsuarios = () =>
+  req<UsuarioAdmin[]>("/admin/usuarios");
+
+export const adminListEscolas = () =>
+  req<EscolaAgg[]>("/admin/escolas");
+
+export const adminGetTaxonomiaStats = (etapa = "ef2") =>
+  req<TaxonomiaStats>(`/admin/taxonomia/stats?etapa=${etapa}`);
+
+export const adminGetTaxonomiaNos = (materia?: string, etapa = "ef2") => {
+  const q = new URLSearchParams({ etapa });
+  if (materia) q.set("materia", materia);
+  return req<TaxonomiaNoFlat[]>(`/admin/taxonomia/nos?${q.toString()}`);
+};
+
+export const adminSeedTaxonomia = () =>
+  req<{ ok: boolean; adicionados: number; atualizados: number; total_depois: number }>(
+    "/admin/seed-taxonomia",
+    { method: "POST" },
+  );
+
+export const adminImportTaxonomiaJson = (data: unknown) =>
+  req<{ ok: boolean; adicionados: number; atualizados: number; total_depois: number }>(
+    "/admin/taxonomia/import-json",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    },
+  );
 
 export const saveRespostas = (
   provaId: number,
