@@ -150,6 +150,11 @@ export interface EscolaAgg {
   turmas: number;
 }
 
+export interface ProvaAdmin extends Prova {
+  turma_nome: string | null;
+  turma_escola: string | null;
+}
+
 export interface TaxonomiaNoFlat {
   id: number;
   codigo: string;

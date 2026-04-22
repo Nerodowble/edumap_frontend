@@ -8,12 +8,14 @@ import {
   adminGetTaxonomiaStats, adminGetTaxonomiaNos,
   adminSeedTaxonomia, adminImportTaxonomiaJson,
   adminAtualizarNo, adminCriarNo, adminDeletarNo,
+  adminListProvas, adminDeleteProva,
 } from "@/lib/api";
 import type {
   UsuarioAdmin, EscolaAgg, TaxonomiaStats, TaxonomiaNoFlat,
+  ProvaAdmin,
 } from "@/lib/types";
 
-type Tab = "usuarios" | "escolas" | "taxonomia";
+type Tab = "usuarios" | "escolas" | "provas" | "taxonomia";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -40,6 +42,7 @@ export default function AdminPage() {
         {([
           ["usuarios",  "👥 Usuários"],
           ["escolas",   "🏫 Escolas"],
+          ["provas",    "📄 Provas"],
           ["taxonomia", "🗺️ Taxonomia"],
         ] as [Tab, string][]).map(([t, label]) => (
           <button
@@ -54,6 +57,7 @@ export default function AdminPage() {
 
       {tab === "usuarios" && <UsuariosPanel />}
       {tab === "escolas" && <EscolasPanel />}
+      {tab === "provas" && <ProvasPanel />}
       {tab === "taxonomia" && <TaxonomiaPanel />}
     </div>
   );
@@ -158,6 +162,125 @@ function EscolasPanel() {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+
+function ProvasPanel() {
+  const [provas, setProvas] = useState<ProvaAdmin[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [busy, setBusy] = useState<number | null>(null);
+
+  async function reload() {
+    setLoading(true);
+    try {
+      const ps = await adminListProvas();
+      setProvas(ps);
+    } catch {
+      setProvas([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { reload(); }, []);
+
+  function flash(type: "ok" | "err", text: string) {
+    setMsg({ type, text });
+    setTimeout(() => setMsg(null), 4000);
+  }
+
+  async function handleDelete(p: ProvaAdmin) {
+    if (!confirm(
+      `Deletar "${p.titulo}"?\n\n` +
+      `Todas as questões, respostas dos alunos e gabarito serão ` +
+      `apagados permanentemente. Esta ação não pode ser desfeita.`
+    )) return;
+    setBusy(p.id);
+    try {
+      await adminDeleteProva(p.id);
+      flash("ok", `Prova "${p.titulo}" removida.`);
+      await reload();
+    } catch (e) {
+      flash("err", e instanceof Error ? e.message : "Erro ao deletar.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (loading) return <p className="text-gray-400">Carregando…</p>;
+
+  return (
+    <div className="space-y-4">
+      {msg && (
+        <div className={`px-4 py-3 rounded-lg text-sm font-medium ${
+          msg.type === "ok"
+            ? "bg-green-50 text-green-800 border border-green-200"
+            : "bg-red-50 text-red-800 border border-red-200"
+        }`}>
+          {msg.type === "ok" ? "✅" : "❌"} {msg.text}
+        </div>
+      )}
+
+      {provas.length === 0 ? (
+        <div className="card text-center py-12 text-gray-500">
+          Nenhuma prova enviada ainda.
+        </div>
+      ) : (
+        <div className="card p-0 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+              <tr>
+                <th className="text-left px-4 py-3">Título</th>
+                <th className="text-left px-4 py-3">Turma / Escola</th>
+                <th className="text-left px-4 py-3">Série</th>
+                <th className="text-right px-4 py-3">Questões</th>
+                <th className="text-left px-4 py-3">Data</th>
+                <th className="text-right px-4 py-3">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {provas.map(p => (
+                <tr key={p.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium text-gray-900 max-w-[280px] truncate" title={p.titulo}>
+                    📄 {p.titulo}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600 text-xs">
+                    {p.turma_nome ? (
+                      <>
+                        <div className="font-medium text-gray-800">{p.turma_nome}</div>
+                        <div className="text-gray-400">{p.turma_escola}</div>
+                      </>
+                    ) : (
+                      <span className="text-gray-400 italic">sem turma</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">{p.serie}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">{p.total_questoes}</td>
+                  <td className="px-4 py-3 text-gray-400 text-xs">
+                    {String(p.criado_em).slice(0, 10)}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => handleDelete(p)}
+                      disabled={busy === p.id}
+                      className="text-xs px-2 py-1 rounded text-red-600 hover:bg-red-50 border border-red-200 hover:border-red-300"
+                    >
+                      {busy === p.id ? "Removendo…" : "🗑️ Deletar"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="text-xs text-gray-400">
+        A deleção remove a prova, todas as suas questões, respostas de alunos e gabarito em cascata.
+      </p>
     </div>
   );
 }

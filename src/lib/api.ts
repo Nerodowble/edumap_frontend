@@ -3,6 +3,7 @@ import type {
   AlunoReport, DrilldownData, Questao,
   TaxonomiaRelatorio, AlunoPontosCriticos,
   UsuarioAdmin, EscolaAgg, TaxonomiaNoFlat, TaxonomiaStats,
+  ProvaAdmin,
 } from "./types";
 import { getToken, removeToken } from "./auth";
 
@@ -145,6 +146,17 @@ export const adminCriarNo = (body: { parent_id: number; codigo_slug: string; lab
 
 export const adminDeletarNo = (id: number) =>
   fetch(`${BASE}/admin/taxonomia/no/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${getToken() ?? ""}` },
+  }).then(r => {
+    if (!r.ok) throw new Error(`[${r.status}] delete falhou`);
+  });
+
+export const adminListProvas = () =>
+  req<ProvaAdmin[]>("/admin/provas");
+
+export const adminDeleteProva = (id: number) =>
+  fetch(`${BASE}/admin/provas/${id}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${getToken() ?? ""}` },
   }).then(r => {
