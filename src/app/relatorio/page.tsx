@@ -1,16 +1,24 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getTurmas, getProvas, getQuestoes, getRelatorioTurma, getRelatorioDrilldown } from "@/lib/api";
-import type { Turma, Prova, AlunoReport, DrilldownData, Questao } from "@/lib/types";
+import {
+  getTurmas, getProvas, getQuestoes,
+  getRelatorioTurma, getRelatorioDrilldown,
+  getRelatorioTaxonomia, getPontosCriticos,
+} from "@/lib/api";
+import type {
+  Turma, Prova, AlunoReport, DrilldownData, Questao,
+  TaxonomiaNode, AlunoPontosCriticos,
+} from "@/lib/types";
 import { pctColor } from "@/lib/constants";
 import DrilldownTab from "./DrilldownTab";
 import AlunoTab from "./AlunoTab";
 import TurmaTab from "./TurmaTab";
+import TaxonomiaTab from "./TaxonomiaTab";
 import FlowBanner from "@/components/FlowBanner";
 import InfoBox from "@/components/InfoBox";
 
-type Tab = "drilldown" | "aluno" | "turma";
+type Tab = "taxonomia" | "drilldown" | "aluno" | "turma";
 
 export default function RelatorioPage() {
   const [turmas, setTurmas] = useState<Turma[]>([]);
@@ -20,8 +28,10 @@ export default function RelatorioPage() {
   const [questoes, setQuestoes] = useState<Questao[]>([]);
   const [relTurma, setRelTurma] = useState<AlunoReport[]>([]);
   const [drilldown, setDrilldown] = useState<DrilldownData>({});
+  const [taxonomia, setTaxonomia] = useState<TaxonomiaNode[]>([]);
+  const [pontosCriticos, setPontosCriticos] = useState<AlunoPontosCriticos[]>([]);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<Tab>("drilldown");
+  const [tab, setTab] = useState<Tab>("taxonomia");
 
   useEffect(() => {
     getTurmas().then(ts => {
@@ -60,10 +70,14 @@ export default function RelatorioPage() {
       getQuestoes(provaId).catch(() => [] as Questao[]),
       getRelatorioTurma(provaId).catch(() => [] as AlunoReport[]),
       getRelatorioDrilldown(provaId).catch(() => ({} as DrilldownData)),
-    ]).then(([q, r, d]) => {
+      getRelatorioTaxonomia(provaId).catch(() => ({ arvore: [] as TaxonomiaNode[] })),
+      getPontosCriticos(provaId).catch(() => [] as AlunoPontosCriticos[]),
+    ]).then(([q, r, d, tax, pc]) => {
       setQuestoes(q);
       setRelTurma(r);
       setDrilldown(d);
+      setTaxonomia(tax.arvore || []);
+      setPontosCriticos(pc);
     }).finally(() => setLoading(false));
   }, [provaId]);
 
@@ -96,7 +110,8 @@ export default function RelatorioPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <InfoBox variant="info" title="Como ler este relatório?">
           <ul className="space-y-1 text-xs">
-            <li>• <strong>Drill-Down:</strong> desempenho por área → subárea → nível de Bloom → aluno.</li>
+            <li>• <strong>Árvore de Conteúdo:</strong> navegue até o tópico exato onde a turma errou.</li>
+            <li>• <strong>Diagnóstico:</strong> desempenho por área → subárea → nível de Bloom → aluno.</li>
             <li>• <strong>Por Aluno:</strong> ranking individual com pontos críticos de cada estudante.</li>
             <li>• <strong>Visão da Turma:</strong> média geral e os alunos que mais precisam de atenção.</li>
           </ul>
@@ -189,6 +204,7 @@ export default function RelatorioPage() {
           {/* Tabs */}
           <div className="flex gap-2 mb-2 flex-wrap">
             {([
+              ["taxonomia", "🗺️ Árvore de Conteúdo"],
               ["drilldown", "🔍 Diagnóstico por Conteúdo"],
               ["aluno",     "👤 Por Aluno"],
               ["turma",     "🏫 Visão Geral"],
@@ -204,12 +220,14 @@ export default function RelatorioPage() {
           </div>
           <p className="text-xs text-gray-400 mb-5">
             {{
+              taxonomia: "Árvore taxonômica: navegue até o conceito específico (ex: Triângulos › Equilátero) e veja onde a turma falha.",
               drilldown: "Mostra onde a turma tem dificuldades: área → subárea → nível cognitivo → aluno.",
               aluno:     "Lista cada aluno com seus acertos totais e os pontos que mais precisa reforçar.",
               turma:     "Visão consolidada da turma com distribuição de desempenho e alunos em atenção.",
             }[tab]}
           </p>
 
+          {tab === "taxonomia" && <TaxonomiaTab tree={taxonomia} />}
           {tab === "drilldown" && (
             <DrilldownTab
               drilldown={drilldown}
@@ -217,7 +235,13 @@ export default function RelatorioPage() {
               provaTitle={prova.titulo}
             />
           )}
-          {tab === "aluno" && <AlunoTab relTurma={relTurma} drilldown={drilldown} />}
+          {tab === "aluno" && (
+            <AlunoTab
+              relTurma={relTurma}
+              drilldown={drilldown}
+              pontosCriticos={pontosCriticos}
+            />
+          )}
           {tab === "turma" && <TurmaTab relTurma={relTurma} questoes={questoes} />}
         </>
       )}

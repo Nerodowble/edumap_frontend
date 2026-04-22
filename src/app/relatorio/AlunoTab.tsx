@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { BLOOM_COLORS, BLOOM_NAMES, pctColor } from "@/lib/constants";
-import type { AlunoReport, DrilldownData, DetalheQuestao } from "@/lib/types";
+import type { AlunoReport, DrilldownData, DetalheQuestao, AlunoPontosCriticos } from "@/lib/types";
 import PctBadge from "@/components/PctBadge";
 
 const SUGS: Record<string, string> = {
@@ -17,10 +17,13 @@ const SUGS: Record<string, string> = {
 interface Props {
   relTurma: AlunoReport[];
   drilldown: DrilldownData;
+  pontosCriticos?: AlunoPontosCriticos[];
 }
 
-export default function AlunoTab({ relTurma, drilldown }: Props) {
+export default function AlunoTab({ relTurma, drilldown, pontosCriticos = [] }: Props) {
   const [open, setOpen] = useState<number | null>(null);
+
+  const criticosByAluno = new Map(pontosCriticos.map((p) => [p.aluno_id, p.criticos]));
 
   if (relTurma.length === 0) {
     return (
@@ -77,7 +80,46 @@ export default function AlunoTab({ relTurma, drilldown }: Props) {
                   })}
                 </div>
 
-                {/* Pontos críticos */}
+                {/* Pontos críticos taxonômicos (Fase 4) */}
+                {(() => {
+                  const tax = criticosByAluno.get(rel.aluno.id) ?? [];
+                  if (tax.length > 0) {
+                    return (
+                      <>
+                        <p className="text-xs font-semibold text-gray-500 uppercase mb-2">
+                          🎯 Pontos críticos — conteúdo específico
+                        </p>
+                        <div className="space-y-1 mb-4">
+                          {tax.map((pc) => {
+                            const c = pctColor(pc.percentual);
+                            return (
+                              <div
+                                key={pc.codigo}
+                                className="flex items-center gap-2 text-sm py-2 px-3 rounded-r-lg mb-1"
+                                style={{
+                                  background: `${c}14`,
+                                  borderLeft: `4px solid ${c}`,
+                                }}
+                              >
+                                <span style={{ color: c }}>🎯</span>
+                                <span className="font-medium text-gray-900 flex-1">{pc.label}</span>
+                                <span className="text-xs font-bold tabular-nums" style={{ color: c }}>
+                                  {pc.percentual}%
+                                </span>
+                                <span className="text-xs text-gray-400 tabular-nums">
+                                  ({pc.acertos}/{pc.total})
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    );
+                  }
+                  return null;
+                })()}
+
+                {/* Pontos críticos (legado, por drilldown área/subárea/bloom) */}
                 <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Pontos críticos por conteúdo</p>
                 {(() => {
                   const points: React.ReactNode[] = [];

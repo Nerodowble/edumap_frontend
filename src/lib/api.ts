@@ -1,6 +1,7 @@
 import type {
   Turma, Aluno, Prova, PipelineResult,
   AlunoReport, DrilldownData, Questao,
+  TaxonomiaRelatorio, AlunoPontosCriticos,
 } from "./types";
 import { getToken, removeToken } from "./auth";
 
@@ -88,6 +89,12 @@ export const getRelatorioTurma = (provaId: number) =>
 
 export const getRelatorioDrilldown = (provaId: number) =>
   req<DrilldownData>(`/provas/${provaId}/relatorio/drilldown`);
+
+export const getRelatorioTaxonomia = (provaId: number) =>
+  req<TaxonomiaRelatorio>(`/provas/${provaId}/relatorio/taxonomia`);
+
+export const getPontosCriticos = (provaId: number) =>
+  req<AlunoPontosCriticos[]>(`/provas/${provaId}/relatorio/pontos-criticos`);
 
 export const saveRespostas = (
   provaId: number,

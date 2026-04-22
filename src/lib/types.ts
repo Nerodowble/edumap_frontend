@@ -102,5 +102,35 @@ export interface Questao {
   bloom_nivel: number;
   bloom_nome: string;
   bloom_verbo?: string;
+  taxonomia_codigo?: string;
   bncc_codigos: string;
+}
+
+export interface TaxonomiaNode {
+  codigo: string;
+  label: string;
+  nivel: number;
+  total: number;
+  acertos: number;
+  percentual: number;
+  parent_codigo: string | null;
+  filhos: TaxonomiaNode[];
+}
+
+export interface TaxonomiaRelatorio {
+  arvore: TaxonomiaNode[];
+}
+
+export interface PontoCritico {
+  codigo: string;
+  label: string;
+  total: number;
+  acertos: number;
+  percentual: number;
+}
+
+export interface AlunoPontosCriticos {
+  aluno_id: number;
+  nome: string;
+  criticos: PontoCritico[];
 }
