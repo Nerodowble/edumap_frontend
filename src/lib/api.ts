@@ -129,6 +129,28 @@ export const adminImportTaxonomiaJson = (data: unknown) =>
     },
   );
 
+export const adminAtualizarNo = (id: number, body: { label?: string; palavras_chave?: string[] }) =>
+  req<TaxonomiaNoFlat & { ok: boolean }>(`/admin/taxonomia/no/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+export const adminCriarNo = (body: { parent_id: number; codigo_slug: string; label: string; palavras_chave: string[] }) =>
+  req<TaxonomiaNoFlat>("/admin/taxonomia/no", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+export const adminDeletarNo = (id: number) =>
+  fetch(`${BASE}/admin/taxonomia/no/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${getToken() ?? ""}` },
+  }).then(r => {
+    if (!r.ok) throw new Error(`[${r.status}] delete falhou`);
+  });
+
 export const saveRespostas = (
   provaId: number,
   alunoId: number,

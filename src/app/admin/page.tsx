@@ -7,6 +7,7 @@ import {
   adminListUsuarios, adminListEscolas,
   adminGetTaxonomiaStats, adminGetTaxonomiaNos,
   adminSeedTaxonomia, adminImportTaxonomiaJson,
+  adminAtualizarNo, adminCriarNo, adminDeletarNo,
 } from "@/lib/api";
 import type {
   UsuarioAdmin, EscolaAgg, TaxonomiaStats, TaxonomiaNoFlat,
@@ -185,9 +186,19 @@ function TaxonomiaPanel() {
 
   useEffect(() => { refresh(); }, []);
 
-  useEffect(() => {
+  async function reloadNos() {
     if (!materia) return;
-    adminGetTaxonomiaNos(materia).then(setNos).catch(() => setNos([]));
+    try {
+      const ns = await adminGetTaxonomiaNos(materia);
+      setNos(ns);
+    } catch {
+      setNos([]);
+    }
+  }
+
+  useEffect(() => {
+    reloadNos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [materia]);
 
   function flash(type: "ok" | "err", text: string) {
@@ -294,7 +305,16 @@ function TaxonomiaPanel() {
         )}
         {!loading && tree.length > 0 && (
           <div className="border border-gray-100 rounded-lg divide-y divide-gray-50">
-            {tree.map(root => <NoTreeRow key={root.id} no={root} depth={0} defaultOpen={true} />)}
+            {tree.map(root => (
+              <NoTreeRow
+                key={root.id}
+                no={root}
+                depth={0}
+                defaultOpen={true}
+                onChange={reloadNos}
+                flash={flash}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -322,35 +342,219 @@ function buildTree(flat: TaxonomiaNoFlat[]): NoComFilhos[] {
   return roots;
 }
 
-function NoTreeRow({ no, depth, defaultOpen }: { no: NoComFilhos; depth: number; defaultOpen: boolean }) {
+interface RowProps {
+  no: NoComFilhos;
+  depth: number;
+  defaultOpen: boolean;
+  onChange: () => Promise<void> | void;
+  flash: (t: "ok" | "err", m: string) => void;
+}
+
+function NoTreeRow({ no, depth, defaultOpen, onChange, flash }: RowProps) {
   const [open, setOpen] = useState(defaultOpen);
+  const [editing, setEditing] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [label, setLabel] = useState(no.label);
+  const [kws, setKws] = useState(no.palavras_chave ?? "");
+
+  const [newSlug, setNewSlug] = useState("");
+  const [newLabel, setNewLabel] = useState("");
+  const [newKws, setNewKws] = useState("");
+
   const hasChildren = no.filhos.length > 0;
   const indent = depth * 16;
 
+  async function handleSave() {
+    setBusy(true);
+    try {
+      await adminAtualizarNo(no.id, {
+        label: label.trim(),
+        palavras_chave: kws.split(",").map(s => s.trim()).filter(Boolean),
+      });
+      setEditing(false);
+      flash("ok", `Nó "${label}" atualizado.`);
+      await onChange();
+    } catch (e) {
+      flash("err", e instanceof Error ? e.message : "Erro ao salvar.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDelete() {
+    const desc = hasChildren ? ` e todos os ${no.filhos.length} sub-nós` : "";
+    if (!confirm(`Deletar "${no.label}"${desc}? Esta ação não pode ser desfeita.`)) return;
+    setBusy(true);
+    try {
+      await adminDeletarNo(no.id);
+      flash("ok", `Nó "${no.label}" removido.`);
+      await onChange();
+    } catch (e) {
+      flash("err", e instanceof Error ? e.message : "Erro ao deletar.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAddChild() {
+    if (!newSlug.trim() || !newLabel.trim()) {
+      flash("err", "Preencha slug e label.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await adminCriarNo({
+        parent_id: no.id,
+        codigo_slug: newSlug.trim(),
+        label: newLabel.trim(),
+        palavras_chave: newKws.split(",").map(s => s.trim()).filter(Boolean),
+      });
+      setAdding(false);
+      setNewSlug("");
+      setNewLabel("");
+      setNewKws("");
+      setOpen(true);
+      flash("ok", `Sub-nó "${newLabel}" adicionado.`);
+      await onChange();
+    } catch (e) {
+      flash("err", e instanceof Error ? e.message : "Erro ao criar.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div>
-      <div
-        className={`flex items-center gap-2 py-2 text-sm ${hasChildren ? "cursor-pointer hover:bg-gray-50" : ""}`}
-        style={{ paddingLeft: `${indent + 8}px` }}
-        onClick={() => hasChildren && setOpen(!open)}
-      >
-        <span className="text-gray-400 text-xs w-3 flex-shrink-0">
-          {hasChildren ? (open ? "▼" : "▶") : ""}
-        </span>
-        <span className={`flex-1 truncate ${depth === 0 ? "font-bold text-gray-900" : "text-gray-700"}`}>
-          {no.label}
-        </span>
-        {no.palavras_chave && (
-          <span className="text-xs text-gray-400 italic truncate max-w-[40%]" title={no.palavras_chave}>
-            {no.palavras_chave}
+      {editing ? (
+        <div
+          className="bg-blue-50 border-l-4 border-blue-400 py-2 px-3 space-y-2"
+          style={{ paddingLeft: `${indent + 12}px` }}
+        >
+          <input
+            className="input"
+            value={label}
+            onChange={e => setLabel(e.target.value)}
+            placeholder="Label"
+          />
+          <textarea
+            className="input text-xs font-mono min-h-[60px]"
+            value={kws}
+            onChange={e => setKws(e.target.value)}
+            placeholder="palavras-chave, separadas, por, vírgula"
+          />
+          <div className="flex gap-2">
+            <button onClick={handleSave} disabled={busy} className="btn-primary text-xs px-3 py-1">
+              💾 Salvar
+            </button>
+            <button
+              onClick={() => { setEditing(false); setLabel(no.label); setKws(no.palavras_chave ?? ""); }}
+              disabled={busy}
+              className="btn-secondary text-xs px-3 py-1"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div
+          className="flex items-center gap-2 py-2 text-sm group"
+          style={{ paddingLeft: `${indent + 8}px` }}
+        >
+          <span
+            onClick={() => hasChildren && setOpen(!open)}
+            className={`text-gray-400 text-xs w-3 flex-shrink-0 ${hasChildren ? "cursor-pointer" : ""}`}
+          >
+            {hasChildren ? (open ? "▼" : "▶") : ""}
           </span>
-        )}
-        <span className="text-xs text-gray-400 tabular-nums">nv {no.nivel}</span>
-      </div>
+          <span className={`flex-1 truncate ${depth === 0 ? "font-bold text-gray-900" : "text-gray-700"}`}>
+            {no.label}
+          </span>
+          {no.palavras_chave && (
+            <span className="text-xs text-gray-400 italic truncate max-w-[35%]" title={no.palavras_chave}>
+              {no.palavras_chave}
+            </span>
+          )}
+          <span className="text-xs text-gray-400 tabular-nums">nv {no.nivel}</span>
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={() => setEditing(true)}
+              disabled={busy}
+              title="Editar"
+              className="text-xs px-1.5 py-0.5 rounded hover:bg-blue-100 text-blue-600"
+            >
+              ✏️
+            </button>
+            <button
+              onClick={() => setAdding(true)}
+              disabled={busy}
+              title="Adicionar filho"
+              className="text-xs px-1.5 py-0.5 rounded hover:bg-green-100 text-green-600"
+            >
+              ➕
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={busy}
+              title="Deletar"
+              className="text-xs px-1.5 py-0.5 rounded hover:bg-red-100 text-red-600"
+            >
+              🗑️
+            </button>
+          </div>
+        </div>
+      )}
+
+      {adding && (
+        <div
+          className="bg-green-50 border-l-4 border-green-400 py-2 px-3 space-y-2 my-1"
+          style={{ paddingLeft: `${indent + 24}px` }}
+        >
+          <div className="text-xs font-semibold text-green-700">➕ Novo sub-nó em "{no.label}"</div>
+          <input
+            className="input"
+            value={newSlug}
+            onChange={e => setNewSlug(e.target.value)}
+            placeholder="slug (ex: equilatero) — sem espaços ou acentos"
+          />
+          <input
+            className="input"
+            value={newLabel}
+            onChange={e => setNewLabel(e.target.value)}
+            placeholder="Label (ex: Triângulo Equilátero)"
+          />
+          <textarea
+            className="input text-xs font-mono min-h-[60px]"
+            value={newKws}
+            onChange={e => setNewKws(e.target.value)}
+            placeholder="palavras-chave separadas por vírgula"
+          />
+          <div className="flex gap-2">
+            <button onClick={handleAddChild} disabled={busy} className="btn-primary text-xs px-3 py-1">
+              ✅ Criar
+            </button>
+            <button
+              onClick={() => setAdding(false)}
+              disabled={busy}
+              className="btn-secondary text-xs px-3 py-1"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
       {open && hasChildren && (
         <div>
           {no.filhos.map(f => (
-            <NoTreeRow key={f.id} no={f} depth={depth + 1} defaultOpen={depth < 1} />
+            <NoTreeRow
+              key={f.id}
+              no={f}
+              depth={depth + 1}
+              defaultOpen={depth < 1}
+              onChange={onChange}
+              flash={flash}
+            />
           ))}
         </div>
       )}
