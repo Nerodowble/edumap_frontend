@@ -13,7 +13,7 @@ export default function FlowBanner({ step }: { step: 1 | 2 | 3 | 4 }) {
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-        Fluxo de uso — EduMap IA
+        Fluxo de uso — EduMap
       </p>
       <div className="flex items-start flex-wrap gap-1.5">
         {STEPS.map((s, i) => {

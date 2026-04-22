@@ -35,8 +35,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm card">
         <div className="flex flex-col items-center mb-8">
-          <Image src="/logo.png" alt="EduMap IA" width={96} height={96} className="mb-3" />
-          <h1 className="font-bold text-gray-900 text-2xl">EduMap IA</h1>
+          <Image src="/logo.png" alt="EduMap" width={120} height={120} className="mb-3" />
+          <h1 className="font-bold text-gray-900 text-2xl">EduMap</h1>
           <p className="text-sm text-gray-500">Entrar na plataforma</p>
         </div>
 

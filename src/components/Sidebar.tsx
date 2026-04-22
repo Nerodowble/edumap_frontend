@@ -21,14 +21,10 @@ export default function Sidebar() {
   return (
     <aside className="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 flex flex-col z-10">
       {/* Logo */}
-      <div className="px-6 py-6 border-b border-gray-100">
-        <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="EduMap IA" width={52} height={52} />
-          <div>
-            <h1 className="font-bold text-gray-900 text-lg leading-tight">EduMap IA</h1>
-            <p className="text-xs text-gray-500">v0.1 MVP</p>
-          </div>
-        </div>
+      <div className="px-4 py-5 border-b border-gray-100 flex flex-col items-center">
+        <Image src="/logo.png" alt="EduMap" width={110} height={110} />
+        <h1 className="font-bold text-gray-900 text-xl leading-tight mt-2">EduMap</h1>
+        <p className="text-xs text-gray-500">v0.1 MVP</p>
       </div>
 
       {/* Nav */}
@@ -80,7 +76,7 @@ export default function Sidebar() {
       {/* Footer */}
       <div className="px-6 py-3 border-t border-gray-100">
         <p className="text-xs text-gray-400 leading-relaxed">
-          EduMap IA · extensão universitária<br />diagnóstico educacional · código aberto
+          EduMap · extensão universitária<br />diagnóstico educacional · código aberto
         </p>
       </div>
     </aside>

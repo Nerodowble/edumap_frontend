@@ -26,8 +26,8 @@ export default function HomePage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-1">🗺️ EduMap IA</h1>
-        <p className="text-gray-500">Diagnóstico taxonômico inteligente de aprendizagem</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-1">EduMap</h1>
+        <p className="text-gray-500">Diagnóstico taxonômico de aprendizagem</p>
       </div>
 
       {/* Ações rápidas */}

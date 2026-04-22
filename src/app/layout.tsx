@@ -3,8 +3,8 @@ import "./globals.css";
 import AuthGuard from "@/components/AuthGuard";
 
 export const metadata: Metadata = {
-  title: "EduMap IA",
-  description: "Diagnóstico taxonômico inteligente de aprendizagem",
+  title: "EduMap",
+  description: "Diagnóstico taxonômico de aprendizagem",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

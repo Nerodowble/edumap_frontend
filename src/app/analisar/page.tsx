@@ -58,8 +58,8 @@ export default function AnalisarPage() {
     <div>
       <FlowBanner step={2} />
 
-      <h1 className="text-3xl font-bold text-gray-900 mb-1">🗺️ EduMap IA</h1>
-      <p className="text-gray-500 mb-5">Diagnóstico taxonômico inteligente de aprendizagem</p>
+      <h1 className="text-3xl font-bold text-gray-900 mb-1">EduMap</h1>
+      <p className="text-gray-500 mb-5">Diagnóstico taxonômico de aprendizagem</p>
 
       <InfoBox variant="info" title="O que acontece nesta etapa?" className="mb-6">
         <ol className="space-y-1 list-none">
