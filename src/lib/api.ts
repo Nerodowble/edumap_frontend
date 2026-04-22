@@ -98,6 +98,26 @@ export const getRelatorioTaxonomia = (provaId: number) =>
 export const getPontosCriticos = (provaId: number) =>
   req<AlunoPontosCriticos[]>(`/provas/${provaId}/relatorio/pontos-criticos`);
 
+export async function downloadRelatorioPdf(provaId: number, suggestedName = `relatorio_prova_${provaId}.pdf`) {
+  const token = getToken();
+  const res = await fetch(`${BASE}/provas/${provaId}/relatorio/pdf`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    const msg = await res.text().catch(() => res.statusText);
+    throw new Error(`[${res.status}] ${msg}`);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = suggestedName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 // ── Admin ─────────────────────────────────────────────────────────────────────
 export const adminListUsuarios = () =>
   req<UsuarioAdmin[]>("/admin/usuarios");

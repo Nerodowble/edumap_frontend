@@ -5,6 +5,7 @@ import {
   getTurmas, getProvas, getQuestoes,
   getRelatorioTurma, getRelatorioDrilldown,
   getRelatorioTaxonomia, getPontosCriticos,
+  downloadRelatorioPdf,
 } from "@/lib/api";
 import type {
   Turma, Prova, AlunoReport, DrilldownData, Questao,
@@ -31,7 +32,21 @@ export default function RelatorioPage() {
   const [taxonomia, setTaxonomia] = useState<TaxonomiaNode[]>([]);
   const [pontosCriticos, setPontosCriticos] = useState<AlunoPontosCriticos[]>([]);
   const [loading, setLoading] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [tab, setTab] = useState<Tab>("taxonomia");
+
+  async function handleDownloadPdf() {
+    if (!provaId || !prova) return;
+    setDownloadingPdf(true);
+    try {
+      const nomeSeguro = (prova.titulo || `prova_${provaId}`).replace(/[^\w\s.-]/g, "_");
+      await downloadRelatorioPdf(provaId, `EduMap_${nomeSeguro}.pdf`);
+    } catch (e) {
+      alert("Erro ao gerar PDF: " + (e instanceof Error ? e.message : "tente novamente"));
+    } finally {
+      setDownloadingPdf(false);
+    }
+  }
 
   useEffect(() => {
     getTurmas().then(ts => {
@@ -172,6 +187,18 @@ export default function RelatorioPage() {
 
       {!loading && prova && (
         <>
+          {/* Botão de download */}
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={handleDownloadPdf}
+              disabled={downloadingPdf || relTurma.length === 0}
+              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              title={relTurma.length === 0 ? "Lance respostas antes de baixar o relatório" : "Baixar PDF do relatório completo"}
+            >
+              {downloadingPdf ? "Gerando PDF…" : "📥 Baixar relatório em PDF"}
+            </button>
+          </div>
+
           {/* KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="card text-center">
