@@ -18,11 +18,41 @@ export const BLOOM_NAMES: Record<number, string> = {
   0: "—",
 };
 
-export const YEAR_OPTIONS = [
-  "1º ano EF","2º ano EF","3º ano EF","4º ano EF","5º ano EF",
-  "6º ano EF","7º ano EF","8º ano EF","9º ano EF",
-  "1º ano EM","2º ano EM","3º ano EM",
+export const YEAR_GROUPS: Array<{ label: string; options: string[] }> = [
+  {
+    label: "Ensino Fundamental",
+    options: [
+      "1º ano EF", "2º ano EF", "3º ano EF", "4º ano EF", "5º ano EF",
+      "6º ano EF", "7º ano EF", "8º ano EF", "9º ano EF",
+    ],
+  },
+  {
+    label: "Ensino Médio",
+    options: ["1º ano EM", "2º ano EM", "3º ano EM", "Técnico integrado"],
+  },
+  {
+    label: "Graduação",
+    options: [
+      "1º semestre (Graduação)", "2º semestre (Graduação)",
+      "3º semestre (Graduação)", "4º semestre (Graduação)",
+      "5º semestre (Graduação)", "6º semestre (Graduação)",
+      "7º semestre (Graduação)", "8º semestre (Graduação)",
+      "9º semestre (Graduação)", "10º semestre (Graduação)",
+      "Graduação (outro)",
+    ],
+  },
+  {
+    label: "Pós-graduação",
+    options: ["Especialização", "Mestrado", "Doutorado"],
+  },
+  {
+    label: "Outros",
+    options: ["Curso livre", "Concurso", "Avaliação diagnóstica"],
+  },
 ];
+
+// Flat list, mantida para compatibilidade e inicialização
+export const YEAR_OPTIONS: string[] = YEAR_GROUPS.flatMap(g => g.options);
 
 export const SUBJECT_OPTIONS = [
   "Detectar automaticamente",
