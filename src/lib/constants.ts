@@ -28,6 +28,7 @@ export const SUBJECT_OPTIONS = [
   "Detectar automaticamente",
   "Matemática","Português","Ciências","História","Geografia",
   "Biologia","Física","Química","Inglês","Artes","Ed. Física",
+  "Psicologia, Saúde Mental e SUS",
 ];
 
 export const SUBJECT_TO_KEY: Record<string, string> = {
@@ -42,6 +43,7 @@ export const SUBJECT_TO_KEY: Record<string, string> = {
   "Inglês": "ingles",
   "Artes": "artes",
   "Ed. Física": "ed_fisica",
+  "Psicologia, Saúde Mental e SUS": "psicologia_saude_mental_sus",
 };
 
 export function pctColor(pct: number): string {

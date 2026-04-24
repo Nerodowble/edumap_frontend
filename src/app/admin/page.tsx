@@ -9,6 +9,7 @@ import {
   adminSeedTaxonomia, adminImportTaxonomiaJson,
   adminAtualizarNo, adminCriarNo, adminDeletarNo,
   adminListProvas, adminDeleteProva,
+  adminListEtapas, downloadTaxonomiaTemplate,
 } from "@/lib/api";
 import type {
   UsuarioAdmin, EscolaAgg, TaxonomiaStats, TaxonomiaNoFlat,
@@ -287,32 +288,55 @@ function ProvasPanel() {
 
 // ──────────────────────────────────────────────────────────────────────────────
 
+const ETAPA_LABELS: Record<string, string> = {
+  ef1: "Ensino Fundamental I",
+  ef2: "Ensino Fundamental II",
+  em: "Ensino Médio",
+  superior: "Ensino Superior",
+};
+
 function TaxonomiaPanel() {
+  const [etapas, setEtapas] = useState<Array<{ etapa: string; total_nos: number; total_materias: number }>>([]);
+  const [etapa, setEtapa] = useState<string>("ef2");
   const [stats, setStats] = useState<TaxonomiaStats | null>(null);
   const [materia, setMateria] = useState<string>("");
   const [nos, setNos] = useState<TaxonomiaNoFlat[]>([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
-  async function refresh() {
+  async function refreshEtapas() {
+    try {
+      const list = await adminListEtapas();
+      setEtapas(list);
+      if (list.length > 0 && !list.some(e => e.etapa === etapa)) {
+        setEtapa(list[0].etapa);
+      }
+    } catch { setEtapas([]); }
+  }
+
+  async function refreshStats(etapaAtual: string) {
     setLoading(true);
     try {
-      const s = await adminGetTaxonomiaStats();
+      const s = await adminGetTaxonomiaStats(etapaAtual);
       setStats(s);
-      if (s.por_materia.length > 0 && !materia) {
-        setMateria(s.por_materia[0].materia);
+      const primeira = s.por_materia[0]?.materia ?? "";
+      if (!s.por_materia.some(m => m.materia === materia)) {
+        setMateria(primeira);
       }
+    } catch {
+      setStats(null);
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => { refreshEtapas(); }, []);
+  useEffect(() => { refreshStats(etapa); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [etapa]);
 
   async function reloadNos() {
     if (!materia) return;
     try {
-      const ns = await adminGetTaxonomiaNos(materia);
+      const ns = await adminGetTaxonomiaNos(materia, etapa);
       setNos(ns);
     } catch {
       setNos([]);
@@ -322,7 +346,7 @@ function TaxonomiaPanel() {
   useEffect(() => {
     reloadNos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [materia]);
+  }, [materia, etapa]);
 
   function flash(type: "ok" | "err", text: string) {
     setMsg({ type, text });
@@ -333,7 +357,8 @@ function TaxonomiaPanel() {
     try {
       const r = await adminSeedTaxonomia();
       flash("ok", `Seed OK — ${r.total_depois} nós (adicionados ${r.adicionados}, atualizados ${r.atualizados}).`);
-      await refresh();
+      await refreshEtapas();
+      await refreshStats(etapa);
     } catch (e) {
       flash("err", e instanceof Error ? e.message : "Erro no seed.");
     }
@@ -346,12 +371,28 @@ function TaxonomiaPanel() {
       const text = await file.text();
       const data = JSON.parse(text);
       const r = await adminImportTaxonomiaJson(data);
-      flash("ok", `Upload OK — ${r.total_depois} nós (adicionados ${r.adicionados}, atualizados ${r.atualizados}).`);
-      await refresh();
+      flash("ok", `Upload OK — etapa "${r.etapa || "?"}" — ${r.total_depois} nós (adicionados ${r.adicionados}, atualizados ${r.atualizados}).`);
+      await refreshEtapas();
+      // Muda para a etapa recém-importada se diferente
+      const novaEtapa = (r as { etapa?: string }).etapa;
+      if (novaEtapa && novaEtapa !== etapa) {
+        setEtapa(novaEtapa);
+      } else {
+        await refreshStats(etapa);
+      }
     } catch (err) {
       flash("err", err instanceof Error ? err.message : "Erro ao importar JSON.");
     } finally {
       e.target.value = "";
+    }
+  }
+
+  async function handleDownloadTemplate() {
+    try {
+      await downloadTaxonomiaTemplate();
+      flash("ok", "Template baixado.");
+    } catch (err) {
+      flash("err", err instanceof Error ? err.message : "Erro ao baixar template.");
     }
   }
 
@@ -370,12 +411,35 @@ function TaxonomiaPanel() {
         </div>
       )}
 
+      {/* Seletor de etapa */}
+      <div className="card">
+        <div className="flex items-center gap-3 flex-wrap">
+          <label className="label mb-0">Etapa educacional:</label>
+          <select
+            className="input max-w-xs"
+            value={etapa}
+            onChange={e => setEtapa(e.target.value)}
+            disabled={etapas.length === 0}
+          >
+            {etapas.length === 0 && <option value="ef2">Ensino Fundamental II</option>}
+            {etapas.map(e => (
+              <option key={e.etapa} value={e.etapa}>
+                {ETAPA_LABELS[e.etapa] ?? e.etapa} — {e.total_nos} nós, {e.total_materias} matéria(s)
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-gray-400 ml-auto">
+            Código: <code className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{etapa}</code>
+          </span>
+        </div>
+      </div>
+
       {/* Stats */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="card text-center">
             <div className="text-2xl font-bold text-gray-900">{stats.total_nos}</div>
-            <div className="text-xs text-gray-500 mt-1">Total de nós ({stats.etapa})</div>
+            <div className="text-xs text-gray-500 mt-1">Total de nós ({ETAPA_LABELS[stats.etapa] ?? stats.etapa})</div>
           </div>
           <div className="card text-center">
             <div className="text-2xl font-bold text-gray-900">{stats.por_materia.length}</div>
@@ -399,24 +463,36 @@ function TaxonomiaPanel() {
         <h3 className="font-semibold text-gray-900 mb-3">🔧 Ações</h3>
         <div className="flex flex-wrap gap-3">
           <button onClick={handleReSeed} className="btn-primary">
-            🔄 Re-executar seed (do JSON do servidor)
+            🔄 Re-executar seed (ef2 do servidor)
           </button>
           <label className="btn-primary cursor-pointer">
             📤 Upload de novo JSON
             <input type="file" accept="application/json" className="hidden" onChange={handleUploadJson} />
           </label>
+          <button onClick={handleDownloadTemplate} className="btn-secondary">
+            📥 Baixar template (JSON exemplo)
+          </button>
         </div>
         <p className="text-xs text-gray-500 mt-3">
-          O <strong>upload</strong> substitui/atualiza os nós existentes (UPSERT) a partir do JSON enviado.
-          Nós não listados no JSON permanecem no banco (não são apagados).
+          O <strong>upload</strong> lê o campo <code className="font-mono bg-gray-100 px-1 rounded">etapa</code> do
+          JSON e importa para aquela etapa (ef1, ef2, em, superior, etc). Faz UPSERT — nós existentes são
+          atualizados, novos são criados, nós ausentes do JSON não são apagados.
+          <br />
+          Use o <strong>template</strong> como base para criar novas taxonomias (matérias, cursos, outras etapas).
         </p>
       </div>
 
       {/* Selector de matéria */}
       <div className="card">
-        <div className="flex items-center gap-3 mb-3">
-          <label className="label mb-0">Matéria</label>
-          <select className="input max-w-xs" value={materia} onChange={e => setMateria(e.target.value)}>
+        <div className="flex items-center gap-3 mb-3 flex-wrap">
+          <label className="label mb-0">Matéria:</label>
+          <select
+            className="input max-w-xs"
+            value={materia}
+            onChange={e => setMateria(e.target.value)}
+            disabled={!stats || stats.por_materia.length === 0}
+          >
+            {stats?.por_materia.length === 0 && <option value="">(nenhuma matéria nesta etapa)</option>}
             {stats?.por_materia.map(m => (
               <option key={m.materia} value={m.materia}>{m.materia} ({m.total})</option>
             ))}

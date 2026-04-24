@@ -98,6 +98,23 @@ export const getRelatorioTaxonomia = (provaId: number) =>
 export const getPontosCriticos = (provaId: number) =>
   req<AlunoPontosCriticos[]>(`/provas/${provaId}/relatorio/pontos-criticos`);
 
+export async function downloadTaxonomiaTemplate() {
+  const token = getToken();
+  const res = await fetch(`${BASE}/admin/taxonomia/template`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(`[${res.status}] falha ao baixar template`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "taxonomia_template.json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export async function downloadRelatorioPdf(provaId: number, suggestedName = `relatorio_prova_${provaId}.pdf`) {
   const token = getToken();
   const res = await fetch(`${BASE}/provas/${provaId}/relatorio/pdf`, {
@@ -125,6 +142,9 @@ export const adminListUsuarios = () =>
 export const adminListEscolas = () =>
   req<EscolaAgg[]>("/admin/escolas");
 
+export const adminListEtapas = () =>
+  req<Array<{ etapa: string; total_nos: number; total_materias: number }>>("/admin/taxonomia/etapas");
+
 export const adminGetTaxonomiaStats = (etapa = "ef2") =>
   req<TaxonomiaStats>(`/admin/taxonomia/stats?etapa=${etapa}`);
 
@@ -141,7 +161,7 @@ export const adminSeedTaxonomia = () =>
   );
 
 export const adminImportTaxonomiaJson = (data: unknown) =>
-  req<{ ok: boolean; adicionados: number; atualizados: number; total_depois: number }>(
+  req<{ ok: boolean; etapa: string; adicionados: number; atualizados: number; total_depois: number }>(
     "/admin/taxonomia/import-json",
     {
       method: "POST",
