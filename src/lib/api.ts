@@ -98,6 +98,23 @@ export const getRelatorioTaxonomia = (provaId: number) =>
 export const getPontosCriticos = (provaId: number) =>
   req<AlunoPontosCriticos[]>(`/provas/${provaId}/relatorio/pontos-criticos`);
 
+export async function downloadTaxonomiaExport(etapa: string) {
+  const token = getToken();
+  const res = await fetch(`${BASE}/admin/taxonomia/export?etapa=${encodeURIComponent(etapa)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(`[${res.status}] falha ao exportar taxonomia`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `taxonomia_${etapa}_export.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export async function downloadTaxonomiaTemplate() {
   const token = getToken();
   const res = await fetch(`${BASE}/admin/taxonomia/template`, {

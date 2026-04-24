@@ -9,7 +9,7 @@ import {
   adminSeedTaxonomia, adminImportTaxonomiaJson,
   adminAtualizarNo, adminCriarNo, adminDeletarNo,
   adminListProvas, adminDeleteProva,
-  adminListEtapas, downloadTaxonomiaTemplate,
+  adminListEtapas, downloadTaxonomiaTemplate, downloadTaxonomiaExport,
 } from "@/lib/api";
 import type {
   UsuarioAdmin, EscolaAgg, TaxonomiaStats, TaxonomiaNoFlat,
@@ -396,6 +396,15 @@ function TaxonomiaPanel() {
     }
   }
 
+  async function handleExportEtapa() {
+    try {
+      await downloadTaxonomiaExport(etapa);
+      flash("ok", `Taxonomia da etapa "${etapa}" exportada.`);
+    } catch (err) {
+      flash("err", err instanceof Error ? err.message : "Erro ao exportar.");
+    }
+  }
+
   // Monta a árvore a partir da lista flat (parent_id)
   const tree = buildTree(nos);
 
@@ -462,24 +471,33 @@ function TaxonomiaPanel() {
       <div className="card">
         <h3 className="font-semibold text-gray-900 mb-3">🔧 Ações</h3>
         <div className="flex flex-wrap gap-3">
-          <button onClick={handleReSeed} className="btn-primary">
-            🔄 Re-executar seed (ef2 do servidor)
-          </button>
           <label className="btn-primary cursor-pointer">
             📤 Upload de novo JSON
             <input type="file" accept="application/json" className="hidden" onChange={handleUploadJson} />
           </label>
+          <button onClick={handleExportEtapa} className="btn-secondary" disabled={!stats}>
+            💾 Baixar taxonomia atual ({etapa})
+          </button>
           <button onClick={handleDownloadTemplate} className="btn-secondary">
-            📥 Baixar template (JSON exemplo)
+            📄 Baixar template (JSON exemplo)
+          </button>
+          <button onClick={handleReSeed} className="btn-secondary text-xs" title="Re-importa os JSONs do repositório (ef2 e superior)">
+            🔄 Re-seed do repositório
           </button>
         </div>
-        <p className="text-xs text-gray-500 mt-3">
-          O <strong>upload</strong> lê o campo <code className="font-mono bg-gray-100 px-1 rounded">etapa</code> do
-          JSON e importa para aquela etapa (ef1, ef2, em, superior, etc). Faz UPSERT — nós existentes são
-          atualizados, novos são criados, nós ausentes do JSON não são apagados.
-          <br />
-          Use o <strong>template</strong> como base para criar novas taxonomias (matérias, cursos, outras etapas).
-        </p>
+        <div className="text-xs text-gray-500 mt-3 space-y-1.5">
+          <p>
+            <strong>📤 Upload:</strong> lê o campo <code className="font-mono bg-gray-100 px-1 rounded">etapa</code> do
+            JSON e importa. UPSERT — atualiza existentes, cria novos, não apaga nós ausentes.
+          </p>
+          <p>
+            <strong>💾 Exportar:</strong> baixa a taxonomia atual da etapa selecionada em formato compatível
+            com upload. Ideal para editar offline ou fazer backup.
+          </p>
+          <p>
+            <strong>📄 Template:</strong> baixa um exemplo mínimo para criar novas taxonomias do zero.
+          </p>
+        </div>
       </div>
 
       {/* Selector de matéria */}
