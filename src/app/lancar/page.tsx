@@ -5,6 +5,7 @@ import {
   getTurmas, getAlunos, getProvas, getQuestoes,
   getGabarito, lancarRespostas, ocrGabaritoAluno,
 } from "@/lib/api";
+import { maybeCompressImage } from "@/lib/image";
 import type { Turma, Aluno, Prova, Questao } from "@/lib/types";
 import FlowBanner from "@/components/FlowBanner";
 import InfoBox from "@/components/InfoBox";
@@ -130,7 +131,9 @@ export default function LancarPage() {
     setOcrLoadingId(alunoId);
     setOcrFeedback(prev => ({ ...prev, [alunoId]: "" }));
     try {
-      const result = await ocrGabaritoAluno(provaId, file);
+      // Comprime foto antes do upload (importante em mobile)
+      const arquivo = await maybeCompressImage(file);
+      const result = await ocrGabaritoAluno(provaId, arquivo);
       const detected = result.respostas;
       const count = result.total_detectado;
 

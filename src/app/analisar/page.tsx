@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { getTurmas, uploadProva, saveGabarito } from "@/lib/api";
+import { maybeCompressImage, formatFileSize } from "@/lib/image";
 import { YEAR_OPTIONS, YEAR_GROUPS, SUBJECT_OPTIONS, BLOOM_COLORS, BLOOM_NAMES, pctColor, pctIcon } from "@/lib/constants";
 import type { Turma, PipelineResult, Question } from "@/lib/types";
 import PctBadge from "@/components/PctBadge";
@@ -33,14 +34,24 @@ export default function AnalisarPage() {
     if (!file) { setError("Selecione um arquivo."); return; }
     setError("");
     setLoading(true);
-    setProgress("Enviando arquivo…");
+
     try {
+      // Comprime imagem antes do upload (importante para fotos de celular)
+      let arquivo = file;
+      if (file.type.startsWith("image/") && file.size > 800 * 1024) {
+        setProgress(`Otimizando imagem (${formatFileSize(file.size)})…`);
+        arquivo = await maybeCompressImage(file);
+        if (arquivo !== file) {
+          setProgress(`Imagem otimizada: ${formatFileSize(file.size)} → ${formatFileSize(arquivo.size)}`);
+        }
+      }
+
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", arquivo);
       fd.append("year_level", year);
       fd.append("subject", subject);
       if (turmaId !== "none") fd.append("turma_id", turmaId);
-      setProgress("Processando OCR e classificando questões…");
+      setProgress("Enviando para o servidor e processando OCR (pode levar até 60s)…");
       const res = await uploadProva(fd);
       setResult(res);
       setTab("geral");
