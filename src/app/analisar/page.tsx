@@ -76,7 +76,7 @@ export default function AnalisarPage() {
           <div className="card">
             <h2 className="font-semibold text-gray-900 mb-5 text-lg">Analisar nova prova</h2>
             <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="label">Série / Ano</label>
                   <select className="input" value={year} onChange={e => setYear(e.target.value)}>
@@ -296,7 +296,7 @@ function TabGeral({ qs, bloomCounts, areaCounts }: {
       {/* Bloom distribution */}
       <div className="card">
         <h3 className="font-semibold text-gray-900 mb-4">Distribuição por Bloom</h3>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[1,2,3,4,5,6].map(lvl => {
             const cnt = bloomCounts[lvl] ?? 0;
             const pct = Math.round(cnt * 100 / total);

@@ -1,10 +1,17 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import AuthGuard from "@/components/AuthGuard";
 
 export const metadata: Metadata = {
   title: "EduMap",
   description: "Diagnóstico taxonômico de aprendizagem",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: "#1D4ED8",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

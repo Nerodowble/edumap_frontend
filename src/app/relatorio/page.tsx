@@ -158,7 +158,7 @@ export default function RelatorioPage() {
       </div>
 
       {/* Selectors */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div>
           <label className="label">Turma</label>
           <select className="input" value={turmaId ?? ""} onChange={e => setTurmaId(Number(e.target.value))}>
