@@ -424,7 +424,8 @@ function GabaritoCard({ provaId, questoes }: { provaId: number; questoes: Questi
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   function handleChange(i: number, value: string) {
-    const upper = value.toUpperCase().replace(/[^A-E]/g, "").slice(-1);
+    // Aceita A-E (multipla escolha) e V/F (verdadeiro/falso)
+    const upper = value.toUpperCase().replace(/[^A-EVF]/g, "").slice(-1);
     setGabarito(prev => ({ ...prev, [questoes[i].number]: upper }));
     setSaved(false);
     if (upper && i < questoes.length - 1) {
@@ -452,23 +453,33 @@ function GabaritoCard({ provaId, questoes }: { provaId: number; questoes: Questi
         {saved && <span className="text-green-600 text-sm font-medium">✓ Salvo</span>}
       </div>
       <p className="text-sm text-gray-500 mb-4">
-        Preencha as alternativas corretas (A–E). Depois acesse <strong>Lançamento</strong> para registrar as respostas dos alunos.
+        Preencha as alternativas corretas: <strong>A–E</strong> para múltipla escolha ou <strong>V/F</strong> para verdadeiro/falso.
+        Depois acesse <strong>Lançamento</strong> para registrar as respostas dos alunos.
       </p>
       <div className="flex flex-wrap gap-2 mb-4">
-        {questoes.map((q, i) => (
-          <div key={q.number} className="flex flex-col items-center gap-1">
-            <span className="text-xs text-gray-400 font-medium">Q{q.number}</span>
-            <input
-              ref={el => { inputRefs.current[i] = el; }}
-              type="text"
-              maxLength={1}
-              value={gabarito[q.number] ?? ""}
-              onChange={e => handleChange(i, e.target.value)}
-              placeholder="—"
-              className="w-9 h-9 text-center uppercase font-bold border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none text-gray-900 bg-white"
-            />
-          </div>
-        ))}
+        {questoes.map((q, i) => {
+          const isVF = q.tipo === "verdadeiro_falso";
+          return (
+            <div key={q.number} className="flex flex-col items-center gap-1">
+              <span className="text-xs text-gray-400 font-medium">Q{q.number}</span>
+              <input
+                ref={el => { inputRefs.current[i] = el; }}
+                type="text"
+                maxLength={1}
+                value={gabarito[q.number] ?? ""}
+                onChange={e => handleChange(i, e.target.value)}
+                placeholder={isVF ? "V/F" : "—"}
+                title={isVF ? "Verdadeiro (V) ou Falso (F)" : "Múltipla escolha (A-E)"}
+                className={`w-9 h-9 text-center uppercase font-bold border-2 rounded-lg focus:outline-none text-gray-900 bg-white ${
+                  isVF
+                    ? "border-amber-300 focus:border-amber-500"
+                    : "border-gray-200 focus:border-blue-500"
+                }`}
+              />
+              {isVF && <span className="text-[9px] font-bold text-amber-600">V/F</span>}
+            </div>
+          );
+        })}
       </div>
       <button
         onClick={handleSave}

@@ -30,11 +30,14 @@ export interface BnccSkill {
   descricao?: string;
 }
 
+export type TipoQuestao = "multipla_escolha" | "verdadeiro_falso";
+
 export interface Question {
   number: number;
   text: string;
   stem: string;
   alternatives: string[];
+  tipo?: TipoQuestao;
   area_key: string;
   area_display: string;
   area_confidence: number;
@@ -95,6 +98,7 @@ export interface Questao {
   numero: number;
   texto: string;
   stem: string;
+  tipo?: TipoQuestao;
   area_key: string;
   area_display: string;
   subarea_key: string;

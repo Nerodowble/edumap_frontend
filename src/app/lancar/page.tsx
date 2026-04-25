@@ -91,7 +91,8 @@ export default function LancarPage() {
   }
 
   const setResposta = useCallback((alunoId: number, numero: number, value: string) => {
-    const upper = value.toUpperCase().replace(/[^A-E]/g, "").slice(-1);
+    // Aceita A-E (múltipla escolha) e V/F (verdadeiro/falso)
+    const upper = value.toUpperCase().replace(/[^A-EVF]/g, "").slice(-1);
     setSaved(false);
     setRespostas(prev => ({
       ...prev,
@@ -208,7 +209,7 @@ export default function LancarPage() {
           <ol className="space-y-1">
             <li><strong>1.</strong> Selecione a turma e a prova desejada.</li>
             <li><strong>2.</strong> A grade exibe todos os alunos × questões.</li>
-            <li><strong>3.</strong> Preencha as respostas (A, B, C, D ou E) — digitando ou via foto.</li>
+            <li><strong>3.</strong> Preencha as respostas: <strong>A-E</strong> para múltipla escolha, <strong>V/F</strong> para verdadeiro/falso (questões V/F vêm marcadas no cabeçalho da coluna).</li>
             <li><strong>4.</strong> Clique em <strong>Salvar Respostas</strong> — o sistema compara com o gabarito e calcula tudo.</li>
           </ol>
         </InfoBox>
@@ -288,9 +289,19 @@ export default function LancarPage() {
                 <tr className="border-b border-gray-200 bg-gray-50">
                   <th className="text-left py-3 px-4 text-gray-600 font-semibold sticky left-0 bg-gray-50 min-w-[160px]">Aluno</th>
                   <th className="py-3 px-2 text-gray-500 font-medium w-10 text-center" title="Upload OCR">📷</th>
-                  {questoes.map(q => (
-                    <th key={q.numero} className="text-center py-3 px-1 text-gray-500 font-medium w-10">Q{q.numero}</th>
-                  ))}
+                  {questoes.map(q => {
+                    const isVF = q.tipo === "verdadeiro_falso";
+                    return (
+                      <th key={q.numero} className="text-center py-3 px-1 text-gray-500 font-medium w-10">
+                        <div>Q{q.numero}</div>
+                        {isVF && (
+                          <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1 rounded" title="Verdadeiro ou Falso">
+                            V/F
+                          </span>
+                        )}
+                      </th>
+                    );
+                  })}
                 </tr>
 
                 {temGabarito && (

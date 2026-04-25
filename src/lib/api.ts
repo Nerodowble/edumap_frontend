@@ -86,6 +86,13 @@ export const uploadProva = (formData: FormData) =>
 export const getQuestoes = (provaId: number) =>
   req<Questao[]>(`/provas/${provaId}/questoes`);
 
+export const updateTipoQuestao = (provaId: number, questaoId: number, tipo: "multipla_escolha" | "verdadeiro_falso") =>
+  req<{ ok: boolean; tipo: string }>(`/provas/${provaId}/questoes/${questaoId}/tipo`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tipo }),
+  });
+
 export const getRelatorioTurma = (provaId: number) =>
   req<AlunoReport[]>(`/provas/${provaId}/relatorio/turma`);
 
