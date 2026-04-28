@@ -6,11 +6,13 @@ import {
   getGabarito, lancarRespostas, ocrGabaritoAluno,
 } from "@/lib/api";
 import { maybeCompressImage } from "@/lib/image";
+import { useToast } from "@/components/Toast";
 import type { Turma, Aluno, Prova, Questao } from "@/lib/types";
 import FlowBanner from "@/components/FlowBanner";
 import InfoBox from "@/components/InfoBox";
 
 export default function LancarPage() {
+  const toast = useToast();
   const [turmas, setTurmas]     = useState<Turma[]>([]);
   const [turmaId, setTurmaId]   = useState<number | null>(null);
   const [alunos, setAlunos]     = useState<Aluno[]>([]);
@@ -175,8 +177,12 @@ export default function LancarPage() {
       }
       await lancarRespostas(provaId, payload);
       setSaved(true);
+      const totalAlunos = Object.keys(payload).length;
+      toast.ok(`Respostas salvas com sucesso! ${totalAlunos} aluno(s) registrado(s).`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erro ao salvar.");
+      const msg = e instanceof Error ? e.message : "Erro ao salvar.";
+      setError(msg);
+      toast.err(msg);
     } finally {
       setSaving(false);
     }
@@ -329,20 +335,21 @@ export default function LancarPage() {
                   return (
                     <>
                       <tr key={aluno.id} className={`border-b border-gray-100 ${rowBg}`}>
-                        <td className={`py-2 px-4 font-medium text-gray-800 text-xs sticky left-0 ${rowBg}`}>
+                        <td className={`py-2 px-4 font-bold text-gray-900 text-sm sticky left-0 ${rowBg}`}>
                           {aluno.nome}
                         </td>
 
-                        {/* Botão OCR */}
+                        {/* Botão OCR — alvo de toque grande (44x44) com label */}
                         <td className="px-2 text-center">
                           <button
                             onClick={() => handleOcrClick(aluno.id)}
                             disabled={isOcring || !provaId}
-                            title="Upload do gabarito físico do aluno (imagem ou PDF)"
-                            className={`w-8 h-8 rounded-lg border text-sm transition-colors
+                            title="Enviar foto da folha de resposta deste aluno (preenchimento automático)"
+                            aria-label={`Enviar foto do gabarito de ${aluno.nome}`}
+                            className={`w-11 h-11 rounded-lg border text-base transition-colors flex items-center justify-center
                               ${isOcring
                                 ? "border-blue-300 bg-blue-50 text-blue-400 animate-pulse cursor-wait"
-                                : "border-gray-200 bg-white hover:border-blue-400 hover:bg-blue-50 text-gray-500 hover:text-blue-600"
+                                : "border-gray-300 bg-white hover:border-blue-500 hover:bg-blue-50 text-gray-600 hover:text-blue-700 active:bg-blue-100"
                               }`}
                           >
                             {isOcring ? "⏳" : "📷"}
@@ -358,21 +365,22 @@ export default function LancarPage() {
                           const refIdx    = alunoIdx * questoes.length + qIdx;
 
                           return (
-                            <td key={q.numero} className="px-0.5 py-1.5 text-center">
+                            <td key={q.numero} className="px-0.5 py-2 text-center">
                               <input
                                 ref={el => { inputRefs.current[refIdx] = el; }}
                                 type="text"
+                                inputMode="text"
                                 maxLength={1}
                                 value={val}
                                 onChange={e => handleCellChange(alunoIdx, qIdx, aluno.id, q.numero, e.target.value)}
                                 onFocus={e => e.target.select()}
-                                className={`w-8 h-8 text-center uppercase font-bold border-2 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 text-sm transition-colors
-                                  ${isCorrect && isOcr ? "border-green-400 bg-green-50 text-green-700 ring-1 ring-blue-200" :
-                                    isCorrect           ? "border-green-400 bg-green-50 text-green-700" :
-                                    isWrong   && isOcr  ? "border-red-300 bg-red-50 text-red-600 ring-1 ring-blue-200" :
-                                    isWrong             ? "border-red-300 bg-red-50 text-red-600" :
-                                    isOcr               ? "border-blue-400 bg-blue-50 text-blue-700" :
-                                                          "border-gray-200 bg-white text-gray-900"}`}
+                                className={`w-11 h-11 text-center uppercase font-bold border-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 text-base transition-colors
+                                  ${isCorrect && isOcr ? "border-green-500 bg-green-50 text-green-700 ring-2 ring-blue-200" :
+                                    isCorrect           ? "border-green-500 bg-green-50 text-green-700" :
+                                    isWrong   && isOcr  ? "border-red-400 bg-red-50 text-red-600 ring-2 ring-blue-200" :
+                                    isWrong             ? "border-red-400 bg-red-50 text-red-600" :
+                                    isOcr               ? "border-blue-500 bg-blue-50 text-blue-700" :
+                                                          "border-gray-300 bg-white text-gray-900 hover:border-blue-300"}`}
                               />
                             </td>
                           );
@@ -396,27 +404,55 @@ export default function LancarPage() {
             </table>
           </div>
 
-          {/* Rodapé */}
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="text-sm text-gray-500">
-              {totalPreench} / {totalCelulas} células preenchidas
-              {totalCelulas > 0 && (
-                <span className="ml-2 text-gray-400">({Math.round(totalPreench * 100 / totalCelulas)}%)</span>
-              )}
-            </div>
-            <div className="flex items-center gap-4">
-              {error && <p className="text-red-600 text-sm">{error}</p>}
-              {saved && <p className="text-green-600 text-sm font-medium">✓ Respostas salvas!</p>}
+          {/* Espaço pra não cobrir conteúdo abaixo do sticky bar */}
+          <div className="h-24" aria-hidden="true" />
+        </>
+      )}
+
+      {/* Rodapé fixo (sticky) — sempre visível durante o scroll */}
+      {questoes.length > 0 && alunos.length > 0 && (
+        <div className="fixed bottom-0 left-0 md:left-64 right-0 bg-white border-t border-gray-200 shadow-lg z-30">
+          <div className="px-4 md:px-8 py-3 max-w-[1400px]">
+            {/* Barra de progresso */}
+            {totalCelulas > 0 && (() => {
+              const pct = Math.round(totalPreench * 100 / totalCelulas);
+              const barColor = pct === 100 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-400" : "bg-rose-400";
+              const labelColor = pct === 100 ? "text-emerald-700" : pct >= 50 ? "text-amber-700" : "text-rose-700";
+              return (
+                <div className="mb-2">
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className={`font-semibold ${labelColor}`}>
+                      Progresso: {totalPreench}/{totalCelulas} ({pct}%)
+                    </span>
+                    {pct === 100 && (
+                      <span className="text-emerald-700 font-medium">✓ Todas as respostas lançadas!</span>
+                    )}
+                  </div>
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 ${barColor}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="text-xs text-gray-500">
+                {error && <span className="text-red-600">{error}</span>}
+                {saved && <span className="text-green-700 font-medium">✓ Respostas salvas!</span>}
+              </div>
               <button
                 onClick={handleSave}
                 disabled={saving || semGabarito || totalPreench === 0}
-                className="btn-primary px-8 py-2.5"
+                className="btn-primary px-6 md:px-8 py-3 text-sm md:text-base min-h-[44px]"
               >
                 {saving ? "Salvando…" : "💾 Salvar Respostas"}
               </button>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* Estado vazio */}

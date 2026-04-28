@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { getTurmas, uploadProva, saveGabarito } from "@/lib/api";
 import { maybeCompressImage, formatFileSize } from "@/lib/image";
+import { useToast } from "@/components/Toast";
 import { YEAR_OPTIONS, YEAR_GROUPS, SUBJECT_OPTIONS, BLOOM_COLORS, BLOOM_NAMES, pctColor, pctIcon } from "@/lib/constants";
 import type { Turma, PipelineResult, Question } from "@/lib/types";
 import PctBadge from "@/components/PctBadge";
@@ -13,6 +14,7 @@ import InfoBox from "@/components/InfoBox";
 type Tab = "geral" | "questoes" | "recomendacoes";
 
 export default function AnalisarPage() {
+  const toast = useToast();
   const [turmas, setTurmas] = useState<Turma[]>([]);
   const [year, setYear] = useState(YEAR_OPTIONS[5]);
   const [subject, setSubject] = useState(SUBJECT_OPTIONS[0]);
@@ -55,8 +57,12 @@ export default function AnalisarPage() {
       const res = await uploadProva(fd);
       setResult(res);
       setTab("geral");
+      const qtd = res?.questions?.length ?? 0;
+      toast.ok(`Prova analisada! ${qtd} questão(ões) detectada(s).`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao processar prova.");
+      const msg = err instanceof Error ? err.message : "Erro ao processar prova.";
+      setError(msg);
+      toast.err(msg);
     } finally {
       setLoading(false);
       setProgress("");
@@ -107,13 +113,26 @@ export default function AnalisarPage() {
               </div>
 
               <div>
-                <label className="label">Vincular a turma (opcional)</label>
+                <label className="label flex items-center gap-2">
+                  <span>🔗 Vincular esta prova a uma turma</span>
+                  <span
+                    className="text-xs text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded font-normal cursor-help"
+                    title="Recomendado: ao vincular, os relatórios individuais de cada aluno desta turma serão gerados automaticamente."
+                  >
+                    ℹ️ recomendado
+                  </span>
+                </label>
                 <select className="input" value={turmaId} onChange={e => setTurmaId(e.target.value)}>
-                  <option value="none">(sem turma)</option>
+                  <option value="none">— Selecionar turma —</option>
                   {turmas.map(t => (
                     <option key={t.id} value={t.id}>{t.nome} — {t.escola}</option>
                   ))}
                 </select>
+                {turmaId === "none" && (
+                  <p className="text-xs text-amber-700 mt-1.5">
+                    ⚠️ Sem turma vinculada, os relatórios individuais dos alunos não serão gerados.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -429,6 +448,7 @@ function TabQuestoes({ qs }: { qs: Question[] }) {
 
 // ── Gabarito Card ─────────────────────────────────────────────────────────────
 function GabaritoCard({ provaId, questoes }: { provaId: number; questoes: Question[] }) {
+  const toast = useToast();
   const [gabarito, setGabarito] = useState<Record<number, string>>({});
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -450,6 +470,10 @@ function GabaritoCard({ provaId, questoes }: { provaId: number; questoes: Questi
     try {
       await saveGabarito(provaId, gabarito);
       setSaved(true);
+      const filled = Object.values(gabarito).filter(Boolean).length;
+      toast.ok(`Gabarito salvo! ${filled} questão(ões) marcada(s).`);
+    } catch (e) {
+      toast.err(e instanceof Error ? e.message : "Erro ao salvar gabarito.");
     } finally {
       setSaving(false);
     }

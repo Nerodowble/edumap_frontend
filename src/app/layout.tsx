@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import AuthGuard from "@/components/AuthGuard";
+import ToastProvider from "@/components/Toast";
 
 export const metadata: Metadata = {
   title: "EduMap",
-  description: "Diagnóstico taxonômico de aprendizagem",
+  description: "Diagnóstico pedagógico para professores",
 };
 
 export const viewport: Viewport = {
@@ -18,7 +19,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR">
       <body>
-        <AuthGuard>{children}</AuthGuard>
+        <ToastProvider>
+          <AuthGuard>{children}</AuthGuard>
+        </ToastProvider>
       </body>
     </html>
   );

@@ -5,8 +5,10 @@ import { getTurmas, createTurma, getAlunos, createAluno, getProvas } from "@/lib
 import type { Turma, Aluno, Prova } from "@/lib/types";
 import FlowBanner from "@/components/FlowBanner";
 import InfoBox from "@/components/InfoBox";
+import { useToast } from "@/components/Toast";
 
 export default function TurmasPage() {
+  const toast = useToast();
   const [turmas, setTurmas] = useState<Turma[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<number | null>(null);
@@ -18,7 +20,6 @@ export default function TurmasPage() {
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkNomes, setBulkNomes] = useState("");
   const [bulkLoading, setBulkLoading] = useState(false);
-  const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -28,21 +29,17 @@ export default function TurmasPage() {
 
   useEffect(() => { load(); }, []);
 
-  function flash(type: "ok" | "err", text: string) {
-    setMsg({ type, text });
-    setTimeout(() => setMsg(null), 3000);
-  }
-
   async function handleCreateTurma(e: React.FormEvent) {
     e.preventDefault();
     if (!turmaNome.trim()) return;
     try {
       await createTurma({ nome: turmaNome, escola: turmaEscola, disciplina: turmaDisc });
+      const nome = turmaNome;
       setTurmaNome(""); setTurmaEscola(""); setTurmaDisc("");
-      flash("ok", `Turma "${turmaNome}" criada!`);
+      toast.ok(`Turma "${nome}" criada com sucesso!`);
       await load();
     } catch (err) {
-      flash("err", err instanceof Error ? err.message : "Erro ao criar turma.");
+      toast.err(err instanceof Error ? err.message : "Erro ao criar turma.");
     }
   }
 
@@ -51,11 +48,12 @@ export default function TurmasPage() {
     if (!alunoNome.trim() || !alunoTurmaId) return;
     try {
       await createAluno(Number(alunoTurmaId), alunoNome);
+      const nome = alunoNome;
       setAlunoNome("");
-      flash("ok", `Aluno "${alunoNome}" adicionado!`);
+      toast.ok(`Aluno "${nome}" adicionado!`);
       await load();
     } catch (err) {
-      flash("err", err instanceof Error ? err.message : "Erro ao adicionar aluno.");
+      toast.err(err instanceof Error ? err.message : "Erro ao adicionar aluno.");
     }
   }
 
@@ -72,7 +70,11 @@ export default function TurmasPage() {
     }
     setBulkNomes("");
     setBulkLoading(false);
-    flash("ok", `${ok} aluno${ok !== 1 ? "s" : ""} importado${ok !== 1 ? "s" : ""}${fail > 0 ? ` (${fail} com erro)` : ""}!`);
+    if (fail > 0) {
+      toast.warn(`${ok} aluno(s) importado(s), ${fail} falharam.`);
+    } else {
+      toast.ok(`${ok} aluno${ok !== 1 ? "s" : ""} importado${ok !== 1 ? "s" : ""} com sucesso!`);
+    }
     await load();
   }
 
@@ -91,14 +93,6 @@ export default function TurmasPage() {
           <li>• Depois, em <strong>Lançamento</strong>, as respostas de cada aluno serão lançadas por nome.</li>
         </ul>
       </InfoBox>
-
-      {msg && (
-        <div className={`mb-4 px-4 py-3 rounded-lg text-sm font-medium ${
-          msg.type === "ok" ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-800 border border-red-200"
-        }`}>
-          {msg.type === "ok" ? "✅" : "❌"} {msg.text}
-        </div>
-      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {/* Criar turma */}
