@@ -11,6 +11,9 @@ const config: Config = {
       colors: {
         primary: "#1D4ED8",
       },
+      fontFamily: {
+        sans: ["var(--font-inter)", "ui-sans-serif", "system-ui", "sans-serif"],
+      },
     },
   },
   plugins: [],

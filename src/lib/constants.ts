@@ -1,11 +1,23 @@
+// Paleta consistente para níveis de Bloom — usada em todas as telas (Analisar, Relatório, Badges)
 export const BLOOM_COLORS: Record<number, string> = {
-  1: "#3B82F6",
-  2: "#10B981",
-  3: "#F59E0B",
-  4: "#F97316",
-  5: "#EF4444",
-  6: "#8B5CF6",
+  1: "#3B82F6", // Lembrar — azul
+  2: "#10B981", // Compreender — verde
+  3: "#F59E0B", // Aplicar — amarelo
+  4: "#F97316", // Analisar — laranja
+  5: "#EC4899", // Avaliar — rosa
+  6: "#8B5CF6", // Criar — roxo
   0: "#9CA3AF",
+};
+
+// Versão clara/pastel para fundos (cards, badges)
+export const BLOOM_COLORS_LIGHT: Record<number, string> = {
+  1: "#DBEAFE", // azul claro
+  2: "#D1FAE5", // verde claro
+  3: "#FEF3C7", // amarelo claro
+  4: "#FED7AA", // laranja claro
+  5: "#FCE7F3", // rosa claro
+  6: "#EDE9FE", // roxo claro
+  0: "#F3F4F6",
 };
 
 export const BLOOM_NAMES: Record<number, string> = {

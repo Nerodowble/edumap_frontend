@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from "react";
 import {
-  UserPlus, ClipboardPaste, ArrowDown, Lock, Check,
+  UserPlus, ClipboardPaste, ArrowDown, Lock, Check, Pencil, Trash2, FileText, X as XIcon,
 } from "lucide-react";
-import { getTurmas, createTurma, getAlunos, createAluno, getProvas } from "@/lib/api";
+import {
+  getTurmas, createTurma, getAlunos, createAluno, getProvas,
+  updateTurma, deleteTurma, updateAluno, deleteAluno,
+} from "@/lib/api";
 import type { Turma, Aluno, Prova } from "@/lib/types";
 import FlowBanner from "@/components/FlowBanner";
 import InfoBox from "@/components/InfoBox";
@@ -231,20 +234,55 @@ export default function TurmasPage() {
       )}
       <div className="space-y-2">
         {turmas.map(t => (
-          <TurmaRow key={t.id} turma={t} open={expanded === t.id} onToggle={() => setExpanded(expanded === t.id ? null : t.id)} />
+          <TurmaRow key={t.id} turma={t} open={expanded === t.id} onToggle={() => setExpanded(expanded === t.id ? null : t.id)} onChanged={load} />
         ))}
       </div>
     </div>
   );
 }
 
-function TurmaRow({ turma, open, onToggle }: { turma: Turma; open: boolean; onToggle: () => void }) {
+/** Limpa nome de arquivo para exibição:
+ * - Remove extensão
+ * - Tira hashes/uuids longos no início (10+ digitos seguidos)
+ * - Substitui underscores por espaços
+ * - Capitaliza palavras-chave
+ */
+function nomeAmigavelProva(p: Prova): string {
+  if (p.titulo && p.titulo.trim()) {
+    const t = p.titulo.replace(/\.[a-z0-9]{2,5}$/i, "").trim();
+    // Se o titulo é só números/hash, usa fallback
+    if (!/^[\d\-_]+$/.test(t) && t.length > 3) return t;
+  }
+  const arq = (p.arquivo_nome || "").replace(/\.[a-z0-9]{2,5}$/i, "");
+  // Se for um hash/UUID puro, usa data
+  if (/^\d{8,}$/.test(arq) || /^[a-f0-9-]{20,}$/i.test(arq)) {
+    return `Prova enviada em ${p.criado_em.slice(0, 10)}`;
+  }
+  // Substitui _ e - por espaços
+  const limpo = arq.replace(/[_\-]+/g, " ").trim();
+  return limpo || `Prova enviada em ${p.criado_em.slice(0, 10)}`;
+}
+
+interface TurmaRowProps {
+  turma: Turma;
+  open: boolean;
+  onToggle: () => void;
+  onChanged: () => void;
+}
+
+function TurmaRow({ turma, open, onToggle, onChanged }: TurmaRowProps) {
+  const toast = useToast();
   const [alunos, setAlunos] = useState<Aluno[]>([]);
   const [provas, setProvas] = useState<Prova[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [editingTurma, setEditingTurma] = useState(false);
+  const [tNome, setTNome] = useState(turma.nome);
+  const [tEscola, setTEscola] = useState(turma.escola);
+  const [tDisc, setTDisc] = useState(turma.disciplina ?? "");
+  const [editingAlunoId, setEditingAlunoId] = useState<number | null>(null);
+  const [editAlunoNome, setEditAlunoNome] = useState("");
 
   async function load() {
-    if (loaded) return;
     const [a, p] = await Promise.all([
       getAlunos(turma.id).catch(() => [] as Aluno[]),
       getProvas(turma.id).catch(() => [] as Prova[]),
@@ -255,28 +293,102 @@ function TurmaRow({ turma, open, onToggle }: { turma: Turma; open: boolean; onTo
   }
 
   function handleToggle() {
-    if (!open) load();
+    if (!open && !loaded) load();
     onToggle();
+  }
+
+  async function handleSaveTurma() {
+    if (!tNome.trim()) { toast.err("Nome da turma não pode ficar vazio."); return; }
+    try {
+      await updateTurma(turma.id, { nome: tNome.trim(), escola: tEscola.trim(), disciplina: tDisc.trim() });
+      setEditingTurma(false);
+      toast.ok("Turma atualizada!");
+      onChanged();
+    } catch (e) {
+      toast.err(e instanceof Error ? e.message : "Erro ao atualizar turma.");
+    }
+  }
+
+  async function handleDeleteTurma() {
+    if (!confirm(`Deletar a turma "${turma.nome}" e todos os seus alunos? Esta ação não pode ser desfeita.`)) return;
+    try {
+      await deleteTurma(turma.id);
+      toast.ok(`Turma "${turma.nome}" removida.`);
+      onChanged();
+    } catch (e) {
+      toast.err(e instanceof Error ? e.message : "Erro ao deletar turma.");
+    }
+  }
+
+  async function handleSaveAluno(alunoId: number) {
+    if (!editAlunoNome.trim()) return;
+    try {
+      await updateAluno(alunoId, editAlunoNome.trim());
+      setEditingAlunoId(null);
+      toast.ok("Aluno atualizado!");
+      await load();
+    } catch (e) {
+      toast.err(e instanceof Error ? e.message : "Erro ao atualizar aluno.");
+    }
+  }
+
+  async function handleDeleteAluno(a: Aluno) {
+    if (!confirm(`Remover o aluno "${a.nome}" desta turma?`)) return;
+    try {
+      await deleteAluno(a.id);
+      toast.ok(`Aluno "${a.nome}" removido.`);
+      await load();
+    } catch (e) {
+      toast.err(e instanceof Error ? e.message : "Erro ao remover aluno.");
+    }
   }
 
   return (
     <div className="card p-0 overflow-hidden">
-      <button
-        onClick={handleToggle}
-        className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors text-left"
-      >
-        <div>
-          <span className="font-semibold text-gray-900">{turma.nome}</span>
-          <span className="text-gray-400 mx-2">—</span>
-          <span className="text-gray-600">{turma.escola}</span>
-          {turma.disciplina && <span className="ml-2 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{turma.disciplina}</span>}
+      {!editingTurma ? (
+        <div className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors gap-3">
+          <button onClick={handleToggle} className="flex-1 flex items-center justify-between text-left min-w-0 gap-2">
+            <div className="min-w-0">
+              <span className="font-semibold text-gray-900">{turma.nome}</span>
+              {turma.escola && <><span className="text-gray-400 mx-2">—</span><span className="text-gray-600">{turma.escola}</span></>}
+              {turma.disciplina && <span className="ml-2 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{turma.disciplina}</span>}
+            </div>
+            <span className="text-gray-400 text-xs flex-shrink-0">{open ? "Ver alunos e provas ▲" : "Ver alunos e provas ▼"}</span>
+          </button>
+          <div className="flex gap-1 flex-shrink-0">
+            <button
+              onClick={() => setEditingTurma(true)}
+              title="Editar dados da turma"
+              aria-label="Editar turma"
+              className="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+            >
+              <Pencil size={16} />
+            </button>
+            <button
+              onClick={handleDeleteTurma}
+              title="Remover esta turma"
+              aria-label="Remover turma"
+              className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
         </div>
-        <span className="text-gray-400 text-sm">{open ? "▲" : "▼"}</span>
-      </button>
+      ) : (
+        <div className="px-5 py-4 bg-blue-50 border-l-4 border-blue-500 grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input className="input" value={tNome} onChange={e => setTNome(e.target.value)} placeholder="Nome da turma" />
+          <input className="input" value={tEscola} onChange={e => setTEscola(e.target.value)} placeholder="Escola" />
+          <input className="input" value={tDisc} onChange={e => setTDisc(e.target.value)} placeholder="Disciplina" />
+          <div className="md:col-span-3 flex gap-2">
+            <button onClick={handleSaveTurma} className="btn-primary text-sm">Salvar</button>
+            <button onClick={() => { setEditingTurma(false); setTNome(turma.nome); setTEscola(turma.escola); setTDisc(turma.disciplina ?? ""); }} className="btn-secondary text-sm">Cancelar</button>
+          </div>
+        </div>
+      )}
 
-      {open && (
+      {open && !editingTurma && (
         <div className="px-5 pb-4 border-t border-gray-100 pt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <p className="text-xs font-semibold text-gray-500 uppercase mb-2">
                 Alunos {alunos.length > 0 && <span className="text-blue-600">({alunos.length})</span>}
@@ -286,9 +398,45 @@ function TurmaRow({ turma, open, onToggle }: { turma: Turma; open: boolean; onTo
               ) : (
                 <div className="space-y-1">
                   {alunos.map(a => (
-                    <div key={a.id} className="text-sm text-gray-700 flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
-                      {a.nome}
+                    <div key={a.id} className="text-sm text-gray-700 flex items-center gap-2 group">
+                      {editingAlunoId === a.id ? (
+                        <>
+                          <input
+                            value={editAlunoNome}
+                            onChange={e => setEditAlunoNome(e.target.value)}
+                            className="input flex-1 text-sm py-1.5"
+                            autoFocus
+                            onKeyDown={e => { if (e.key === "Enter") handleSaveAluno(a.id); if (e.key === "Escape") setEditingAlunoId(null); }}
+                          />
+                          <button onClick={() => handleSaveAluno(a.id)} className="text-green-600 hover:text-green-800 p-1" title="Salvar">
+                            <Check size={16} />
+                          </button>
+                          <button onClick={() => setEditingAlunoId(null)} className="text-gray-400 hover:text-gray-600 p-1" title="Cancelar">
+                            <XIcon size={16} />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="w-1.5 h-1.5 bg-blue-400 rounded-full flex-shrink-0" />
+                          <span className="flex-1">{a.nome}</span>
+                          <button
+                            onClick={() => { setEditingAlunoId(a.id); setEditAlunoNome(a.nome); }}
+                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 p-1 transition-opacity"
+                            title="Editar nome do aluno"
+                            aria-label="Editar aluno"
+                          >
+                            <Pencil size={12} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteAluno(a)}
+                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 p-1 transition-opacity"
+                            title="Remover aluno"
+                            aria-label="Remover aluno"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -303,8 +451,12 @@ function TurmaRow({ turma, open, onToggle }: { turma: Turma; open: boolean; onTo
               ) : (
                 <div className="space-y-1">
                   {provas.map(p => (
-                    <div key={p.id} className="text-sm text-gray-700">
-                      📄 {p.arquivo_nome} — {p.serie} — {p.total_questoes}q — {p.criado_em.slice(0, 10)}
+                    <div key={p.id} className="text-sm text-gray-700 flex items-start gap-2" title={p.arquivo_nome}>
+                      <FileText size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">{nomeAmigavelProva(p)}</div>
+                        <div className="text-xs text-gray-400">{p.serie} — {p.total_questoes} questões — {p.criado_em.slice(0, 10)}</div>
+                      </div>
                     </div>
                   ))}
                 </div>

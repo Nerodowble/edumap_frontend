@@ -64,6 +64,13 @@ export const createTurma = (data: { nome: string; escola: string; disciplina?: s
 export const deleteTurma = (id: number) =>
   req<void>(`/turmas/${id}`, { method: "DELETE" });
 
+export const updateTurma = (id: number, data: { nome: string; escola: string; disciplina?: string }) =>
+  req<Turma>(`/turmas/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
 // ── Alunos ────────────────────────────────────────────────────────────────────
 export const getAlunos = (turmaId: number) =>
   req<Aluno[]>(`/turmas/${turmaId}/alunos`);
@@ -74,6 +81,16 @@ export const createAluno = (turmaId: number, nome: string) =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ nome }),
   });
+
+export const updateAluno = (alunoId: number, nome: string) =>
+  req<Aluno>(`/alunos/${alunoId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nome }),
+  });
+
+export const deleteAluno = (alunoId: number) =>
+  req<void>(`/alunos/${alunoId}`, { method: "DELETE" });
 
 // ── Provas ────────────────────────────────────────────────────────────────────
 export const getProvas = (turmaId: number) =>
