@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import {
-  getTurmas, getProvas, getQuestoes,
+  getTurmas, getProvas, getQuestoes, getAlunos,
   getRelatorioTurma, getRelatorioDrilldown,
   getRelatorioTaxonomia, getPontosCriticos,
   downloadRelatorioPdf,
@@ -31,6 +31,7 @@ export default function RelatorioPage() {
   const [drilldown, setDrilldown] = useState<DrilldownData>({});
   const [taxonomia, setTaxonomia] = useState<TaxonomiaNode[]>([]);
   const [pontosCriticos, setPontosCriticos] = useState<AlunoPontosCriticos[]>([]);
+  const [totalAlunos, setTotalAlunos] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [tab, setTab] = useState<Tab>("taxonomia");
@@ -64,6 +65,8 @@ export default function RelatorioPage() {
     localStorage.setItem("app_turmaId", String(turmaId));
     setProvas([]);
     setProvaId(null);
+    // Buscar total de alunos da turma para mostrar 'X de Y avaliados'
+    getAlunos(turmaId).then(als => setTotalAlunos(als.length)).catch(() => setTotalAlunos(0));
     getProvas(turmaId).then(ps => {
       setProvas(ps);
       if (ps.length > 0) {
@@ -220,7 +223,9 @@ export default function RelatorioPage() {
               <div className="text-xs text-gray-500 mt-1">Série</div>
             </div>
             <div className="card text-center">
-              <div className="text-2xl font-bold text-gray-900">{relTurma.length}</div>
+              <div className="text-2xl font-bold text-gray-900">
+                {relTurma.length}{totalAlunos > 0 && <span className="text-base text-gray-400 font-normal"> de {totalAlunos}</span>}
+              </div>
               <div className="text-xs text-gray-500 mt-1">Alunos avaliados</div>
             </div>
             <div className="card text-center">

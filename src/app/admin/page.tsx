@@ -448,7 +448,7 @@ function TaxonomiaPanel() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="card text-center">
             <div className="text-2xl font-bold text-gray-900">{stats.total_nos}</div>
-            <div className="text-xs text-gray-500 mt-1">Total de nós ({ETAPA_LABELS[stats.etapa] ?? stats.etapa})</div>
+            <div className="text-xs text-gray-500 mt-1">tópicos cadastrados ({ETAPA_LABELS[stats.etapa] ?? stats.etapa})</div>
           </div>
           <div className="card text-center">
             <div className="text-2xl font-bold text-gray-900">{stats.por_materia.length}</div>
@@ -456,46 +456,46 @@ function TaxonomiaPanel() {
           </div>
           <div className="card text-center">
             <div className="text-2xl font-bold text-gray-900">{stats.por_nivel.length}</div>
-            <div className="text-xs text-gray-500 mt-1">Níveis de profundidade</div>
+            <div className="text-xs text-gray-500 mt-1">Organizado em níveis hierárquicos</div>
           </div>
           <div className="card text-center">
             <div className="text-2xl font-bold text-gray-900">
               {Math.max(0, ...stats.por_nivel.map(n => n.nivel))}
             </div>
-            <div className="text-xs text-gray-500 mt-1">Nível máximo</div>
+            <div className="text-xs text-gray-500 mt-1">Profundidade máxima</div>
           </div>
         </div>
       )}
 
       {/* Ações */}
       <div className="card">
-        <h3 className="font-semibold text-gray-900 mb-3">🔧 Ações</h3>
+        <h3 className="font-semibold text-gray-900 mb-3">🔧 Gerenciar conteúdos curriculares</h3>
         <div className="flex flex-wrap gap-3">
           <label className="btn-primary cursor-pointer">
-            📤 Upload de novo JSON
+            📤 Atualizar base de conteúdos
             <input type="file" accept="application/json" className="hidden" onChange={handleUploadJson} />
           </label>
           <button onClick={handleExportEtapa} className="btn-secondary" disabled={!stats}>
-            💾 Baixar taxonomia atual ({etapa})
+            💾 Exportar mapeamento atual
           </button>
           <button onClick={handleDownloadTemplate} className="btn-secondary">
-            📄 Baixar template (JSON exemplo)
+            📄 Baixar modelo para edição
           </button>
-          <button onClick={handleReSeed} className="btn-secondary text-xs" title="Re-importa os JSONs do repositório (ef2 e superior)">
-            🔄 Re-seed do repositório
+          <button onClick={handleReSeed} className="btn-secondary text-xs" title="Restaura os conteúdos curriculares originais do repositório">
+            🔄 Restaurar conteúdo padrão
           </button>
         </div>
         <div className="text-xs text-gray-500 mt-3 space-y-1.5">
           <p>
-            <strong>📤 Upload:</strong> lê o campo <code className="font-mono bg-gray-100 px-1 rounded">etapa</code> do
-            JSON e importa. UPSERT — atualiza existentes, cria novos, não apaga nós ausentes.
+            <strong>📤 Atualizar base:</strong> envie um arquivo atualizado para substituir ou adicionar
+            conteúdos curriculares. Não apaga conteúdos já existentes.
           </p>
           <p>
-            <strong>💾 Exportar:</strong> baixa a taxonomia atual da etapa selecionada em formato compatível
-            com upload. Ideal para editar offline ou fazer backup.
+            <strong>💾 Exportar:</strong> baixa o mapeamento curricular atual em formato editável.
+            Ideal para editar offline ou fazer backup.
           </p>
           <p>
-            <strong>📄 Template:</strong> baixa um exemplo mínimo para criar novas taxonomias do zero.
+            <strong>📄 Modelo:</strong> baixa um exemplo pronto para criar bases novas do zero.
           </p>
         </div>
       </div>

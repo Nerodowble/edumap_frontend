@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
+import { Menu } from "lucide-react";
 import { isAuthenticated } from "@/lib/auth";
 import Sidebar from "./Sidebar";
 
@@ -44,11 +45,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           aria-label="Abrir menu"
           className="p-2 -ml-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors"
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="3" y1="6" x2="21" y2="6" />
-            <line x1="3" y1="12" x2="21" y2="12" />
-            <line x1="3" y1="18" x2="21" y2="18" />
-          </svg>
+          <Menu size={24} />
         </button>
         <div className="flex items-center gap-2">
           <Image src="/logo.png" alt="EduMap" width={28} height={28} />

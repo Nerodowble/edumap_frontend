@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import {
+  UserPlus, ClipboardPaste, ArrowDown, Lock, Check,
+} from "lucide-react";
 import { getTurmas, createTurma, getAlunos, createAluno, getProvas } from "@/lib/api";
 import type { Turma, Aluno, Prova } from "@/lib/types";
 import FlowBanner from "@/components/FlowBanner";
@@ -94,97 +97,128 @@ export default function TurmasPage() {
         </ul>
       </InfoBox>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        {/* Criar turma */}
-        <div className="card">
-          <h2 className="font-semibold text-gray-900 mb-4">Criar nova turma</h2>
-          <form onSubmit={handleCreateTurma} className="space-y-3">
-            <div>
-              <label className="label">Nome da turma</label>
-              <input className="input" placeholder="Ex: 8º ano B" value={turmaNome} onChange={e => setTurmaNome(e.target.value)} />
-            </div>
-            <div>
-              <label className="label">Escola</label>
-              <input className="input" placeholder="Ex: E.E. João da Silva" value={turmaEscola} onChange={e => setTurmaEscola(e.target.value)} />
-            </div>
-            <div>
-              <label className="label">Disciplina principal (opcional)</label>
-              <input className="input" placeholder="Ex: Matemática" value={turmaDisc} onChange={e => setTurmaDisc(e.target.value)} />
-            </div>
-            <button type="submit" className="btn-primary w-full">Criar turma</button>
-          </form>
-        </div>
-
-        {/* Adicionar aluno */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-900">Adicionar alunos</h2>
-            {turmas.length > 0 && (
-              <div className="flex text-xs border border-gray-200 rounded-lg overflow-hidden">
-                <button type="button" onClick={() => setBulkMode(false)}
-                  className={`px-3 py-1.5 transition-colors ${!bulkMode ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-50"}`}>
-                  Um por vez
-                </button>
-                <button type="button" onClick={() => setBulkMode(true)}
-                  className={`px-3 py-1.5 transition-colors ${bulkMode ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-50"}`}>
-                  Colar lista
-                </button>
-              </div>
-            )}
+      {/* PASSO 1 — Criar turma */}
+      <div className="card mb-3 border-l-4 border-blue-500">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center flex-shrink-0">
+            {turmas.length > 0 ? <Check size={18} /> : "1"}
           </div>
+          <div>
+            <h2 className="font-semibold text-gray-900">Passo 1 — Criar uma turma</h2>
+            <p className="text-xs text-gray-500">Cadastre o nome da turma, escola e disciplina principal.</p>
+          </div>
+        </div>
+        <form onSubmit={handleCreateTurma} className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label className="label">Nome da turma</label>
+            <input className="input" placeholder="Ex: 8º ano B" value={turmaNome} onChange={e => setTurmaNome(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Escola</label>
+            <input className="input" placeholder="Ex: E.E. João da Silva" value={turmaEscola} onChange={e => setTurmaEscola(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Disciplina <span className="text-gray-400 font-normal">(opcional)</span></label>
+            <input className="input" placeholder="Ex: Matemática" value={turmaDisc} onChange={e => setTurmaDisc(e.target.value)} />
+          </div>
+          <div className="md:col-span-3">
+            <button type="submit" className="btn-primary w-full md:w-auto md:px-8">Criar turma</button>
+          </div>
+        </form>
+      </div>
 
-          {turmas.length === 0 ? (
-            <p className="text-gray-500 text-sm">Crie uma turma primeiro.</p>
-          ) : (
-            <>
-              <div className="mb-3">
-                <label className="label">Turma</label>
-                <select className="input" value={alunoTurmaId} onChange={e => setAlunoTurmaId(e.target.value)}>
-                  <option value="">Selecionar turma…</option>
-                  {turmas.map(t => (
-                    <option key={t.id} value={t.id}>{t.nome} — {t.escola}</option>
-                  ))}
-                </select>
-              </div>
+      {/* Indicador de transição */}
+      <div className="flex justify-center mb-3 text-gray-400">
+        <ArrowDown size={20} />
+      </div>
 
-              {!bulkMode ? (
-                <form onSubmit={handleCreateAluno} className="space-y-3">
-                  <div>
-                    <label className="label">Nome do aluno</label>
-                    <input className="input" placeholder="Nome completo" value={alunoNome} onChange={e => setAlunoNome(e.target.value)} />
-                  </div>
-                  <button type="submit" className="btn-primary w-full">Adicionar aluno</button>
-                </form>
-              ) : (
-                <form onSubmit={handleBulkImport} className="space-y-3">
-                  <div>
-                    <label className="label">
-                      Lista de nomes <span className="text-gray-400 font-normal">(um por linha — cole da planilha ou chamada)</span>
-                    </label>
-                    <textarea
-                      className="input min-h-[160px] resize-y font-mono text-sm"
-                      placeholder={"Ana Carolina Silva\nBruno Mendes Costa\nCarlos Eduardo Lima\n..."}
-                      value={bulkNomes}
-                      onChange={e => setBulkNomes(e.target.value)}
-                    />
-                    <p className="text-xs text-gray-400 mt-1">
-                      {bulkNomes.split("\n").filter(n => n.trim()).length} aluno(s) na lista
-                    </p>
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={bulkLoading || !alunoTurmaId || bulkNomes.trim().length === 0}
-                    className="btn-primary w-full"
-                  >
-                    {bulkLoading
-                      ? "Importando…"
-                      : `Importar ${bulkNomes.split("\n").filter(n => n.trim()).length} aluno(s)`}
-                  </button>
-                </form>
-              )}
-            </>
+      {/* PASSO 2 — Adicionar alunos */}
+      <div className={`card mb-8 border-l-4 ${turmas.length === 0 ? "border-gray-300 bg-gray-50/50" : "border-emerald-500"}`}>
+        <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-full font-bold flex items-center justify-center flex-shrink-0 ${
+              turmas.length === 0 ? "bg-gray-300 text-gray-500" : "bg-emerald-600 text-white"
+            }`}>
+              {turmas.length === 0 ? <Lock size={16} /> : "2"}
+            </div>
+            <div>
+              <h2 className="font-semibold text-gray-900">Passo 2 — Adicionar alunos à turma</h2>
+              <p className="text-xs text-gray-500">
+                {turmas.length === 0
+                  ? "Crie uma turma primeiro para habilitar este passo."
+                  : "Adicione um aluno por vez ou cole uma lista pronta."}
+              </p>
+            </div>
+          </div>
+          {turmas.length > 0 && (
+            <div className="flex text-xs border border-gray-200 rounded-lg overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setBulkMode(false)}
+                className={`px-3 py-2 transition-colors flex items-center gap-1.5 ${!bulkMode ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
+              >
+                <UserPlus size={13} /> Adicionar um aluno
+              </button>
+              <button
+                type="button"
+                onClick={() => setBulkMode(true)}
+                className={`px-3 py-2 transition-colors flex items-center gap-1.5 ${bulkMode ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}
+              >
+                <ClipboardPaste size={13} /> Colar lista
+              </button>
+            </div>
           )}
         </div>
+
+        {turmas.length > 0 && (
+          <>
+            <div className="mb-3">
+              <label className="label">Turma</label>
+              <select className="input" value={alunoTurmaId} onChange={e => setAlunoTurmaId(e.target.value)}>
+                <option value="">— Selecionar turma —</option>
+                {turmas.map(t => (
+                  <option key={t.id} value={t.id}>{t.nome} — {t.escola}</option>
+                ))}
+              </select>
+            </div>
+
+            {!bulkMode ? (
+              <form onSubmit={handleCreateAluno} className="space-y-3">
+                <div>
+                  <label className="label">Nome do aluno</label>
+                  <input className="input" placeholder="Nome completo" value={alunoNome} onChange={e => setAlunoNome(e.target.value)} />
+                </div>
+                <button type="submit" disabled={!alunoTurmaId || !alunoNome.trim()} className="btn-primary w-full md:w-auto md:px-8">
+                  Adicionar aluno
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleBulkImport} className="space-y-3">
+                <div>
+                  <label className="label">📋 Cole abaixo a lista de nomes — um por linha:</label>
+                  <textarea
+                    className="input min-h-[160px] resize-y font-mono text-sm"
+                    placeholder={"Ana Carolina Silva\nBruno Mendes Costa\nCarlos Eduardo Lima"}
+                    value={bulkNomes}
+                    onChange={e => setBulkNomes(e.target.value)}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {bulkNomes.split("\n").filter(n => n.trim()).length} aluno(s) na lista
+                  </p>
+                </div>
+                <button
+                  type="submit"
+                  disabled={bulkLoading || !alunoTurmaId || bulkNomes.trim().length === 0}
+                  className="btn-primary w-full md:w-auto md:px-8"
+                >
+                  {bulkLoading
+                    ? "Importando…"
+                    : `Importar ${bulkNomes.split("\n").filter(n => n.trim()).length} aluno(s)`}
+                </button>
+              </form>
+            )}
+          </>
+        )}
       </div>
 
       {/* Lista de turmas */}

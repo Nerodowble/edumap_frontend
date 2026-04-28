@@ -3,15 +3,27 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  Home, Users, Upload, ClipboardList, BarChart2, Settings, LogOut, X,
+  type LucideIcon,
+} from "lucide-react";
 import { getUser, logout, ROLE_LABEL } from "@/lib/auth";
 
-const NAV = [
-  { href: "/",          label: "Início",                icon: "🏠", exact: true,  adminOnly: false },
-  { href: "/turmas",    label: "Turmas e Alunos",       icon: "👥", exact: false, adminOnly: false },
-  { href: "/analisar",  label: "Analisar Prova",        icon: "📤", exact: false, adminOnly: false },
-  { href: "/lancar",    label: "Lançamento",            icon: "📝", exact: false, adminOnly: false },
-  { href: "/relatorio", label: "Relatório do Professor", icon: "📊", exact: false, adminOnly: false },
-  { href: "/admin",     label: "Administração",          icon: "⚙️", exact: false, adminOnly: true  },
+interface NavItem {
+  href: string;
+  label: string;
+  Icon: LucideIcon;
+  exact: boolean;
+  adminOnly: boolean;
+}
+
+const NAV: NavItem[] = [
+  { href: "/",          label: "Início",                Icon: Home,          exact: true,  adminOnly: false },
+  { href: "/turmas",    label: "Turmas e Alunos",       Icon: Users,         exact: false, adminOnly: false },
+  { href: "/analisar",  label: "Analisar Prova",        Icon: Upload,        exact: false, adminOnly: false },
+  { href: "/lancar",    label: "Lançamento",            Icon: ClipboardList, exact: false, adminOnly: false },
+  { href: "/relatorio", label: "Relatório do Professor", Icon: BarChart2,     exact: false, adminOnly: false },
+  { href: "/admin",     label: "Administração",          Icon: Settings,      exact: false, adminOnly: true  },
 ];
 
 interface SidebarProps {
@@ -44,10 +56,7 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
         aria-label="Fechar menu"
         className="md:hidden absolute top-3 right-3 p-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 z-10"
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
+        <X size={20} />
       </button>
 
       {/* Logo */}
@@ -59,7 +68,7 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {NAV.filter(n => !n.adminOnly || user?.role === "admin_geral").map(({ href, label, icon, exact }) => {
+        {NAV.filter(n => !n.adminOnly || user?.role === "admin_geral").map(({ href, label, Icon, exact }) => {
           const active = exact ? path === href : path.startsWith(href);
           return (
             <Link
@@ -72,7 +81,7 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
                   : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
               }`}
             >
-              <span className="text-base">{icon}</span>
+              <Icon size={18} className="flex-shrink-0" />
               {label}
             </Link>
           );
@@ -92,13 +101,10 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
             <button
               onClick={logout}
               title="Sair"
+              aria-label="Sair da conta"
               className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0 mt-0.5 p-1"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                <polyline points="16 17 21 12 16 7"/>
-                <line x1="21" y1="12" x2="9" y2="12"/>
-              </svg>
+              <LogOut size={18} />
             </button>
           </div>
         </div>
