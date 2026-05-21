@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { getTurmas, uploadProva, saveGabarito } from "@/lib/api";
 import { maybeCompressImage, formatFileSize } from "@/lib/image";
 import { useToast } from "@/components/Toast";
-import { YEAR_OPTIONS, YEAR_GROUPS, SUBJECT_OPTIONS, BLOOM_COLORS, BLOOM_NAMES, pctColor, pctIcon } from "@/lib/constants";
+import { YEAR_OPTIONS, YEAR_GROUPS, SUBJECT_OPTIONS, SUBJECT_GROUPS, BLOOM_COLORS, BLOOM_NAMES, pctColor, pctIcon } from "@/lib/constants";
 import type { Turma, PipelineResult, Question } from "@/lib/types";
 import PctBadge from "@/components/PctBadge";
 import BloomBadge from "@/components/BloomBadge";
@@ -107,7 +107,12 @@ export default function AnalisarPage() {
                 <div>
                   <label className="label">Disciplina</label>
                   <select className="input" value={subject} onChange={e => setSubject(e.target.value)}>
-                    {SUBJECT_OPTIONS.map(o => <option key={o}>{o}</option>)}
+                    <option value="Detectar automaticamente">Detectar automaticamente</option>
+                    {SUBJECT_GROUPS.map(g => (
+                      <optgroup key={g.label} label={g.label}>
+                        {g.options.map(o => <option key={`${g.label}__${o}`} value={o}>{o}</option>)}
+                      </optgroup>
+                    ))}
                   </select>
                 </div>
               </div>
