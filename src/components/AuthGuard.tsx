@@ -9,6 +9,9 @@ import Sidebar from "./Sidebar";
 
 const PUBLIC_PATHS = ["/login", "/register"];
 
+// Rotas do aluno têm layout próprio (sem sidebar do professor) e não usam o JWT do professor
+const isAlunoPath = (p: string) => p.startsWith("/aluno");
+
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const path = usePathname();
@@ -16,7 +19,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    if (PUBLIC_PATHS.includes(path)) {
+    if (PUBLIC_PATHS.includes(path) || isAlunoPath(path)) {
       setReady(true);
       return;
     }
@@ -31,6 +34,11 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => { setSidebarOpen(false); }, [path]);
 
   if (!ready) return null;
+
+  // Telas do aluno: layout próprio, sem chrome do professor
+  if (isAlunoPath(path)) {
+    return <>{children}</>;
+  }
 
   if (PUBLIC_PATHS.includes(path)) {
     return <>{children}</>;

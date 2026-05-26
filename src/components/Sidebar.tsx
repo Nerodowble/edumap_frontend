@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Home, Users, Upload, ClipboardList, BarChart2, Settings, LogOut, X,
+  Home, Users, Upload, ClipboardList, BarChart2, Settings, LogOut, X, PlusCircle,
   type LucideIcon,
 } from "lucide-react";
 import { getUser, logout, ROLE_LABEL } from "@/lib/auth";
@@ -18,12 +18,13 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { href: "/",          label: "Início",                Icon: Home,          exact: true,  adminOnly: false },
-  { href: "/turmas",    label: "Turmas e Alunos",       Icon: Users,         exact: false, adminOnly: false },
-  { href: "/analisar",  label: "Analisar Prova",        Icon: Upload,        exact: false, adminOnly: false },
-  { href: "/lancar",    label: "Lançamento",            Icon: ClipboardList, exact: false, adminOnly: false },
-  { href: "/relatorio", label: "Relatório do Professor", Icon: BarChart2,     exact: false, adminOnly: false },
-  { href: "/admin",     label: "Administração",          Icon: Settings,      exact: false, adminOnly: true  },
+  { href: "/",            label: "Início",                Icon: Home,          exact: true,  adminOnly: false },
+  { href: "/turmas",      label: "Turmas e Alunos",       Icon: Users,         exact: false, adminOnly: false },
+  { href: "/criar-prova", label: "Criar prova",           Icon: PlusCircle,    exact: false, adminOnly: false },
+  { href: "/analisar",    label: "Analisar Prova (OCR)",  Icon: Upload,        exact: false, adminOnly: false },
+  { href: "/lancar",      label: "Lançamento",            Icon: ClipboardList, exact: false, adminOnly: false },
+  { href: "/relatorio",   label: "Relatório do Professor",Icon: BarChart2,     exact: false, adminOnly: false },
+  { href: "/admin",       label: "Administração",         Icon: Settings,      exact: false, adminOnly: true  },
 ];
 
 interface SidebarProps {

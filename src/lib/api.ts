@@ -3,9 +3,11 @@ import type {
   AlunoReport, DrilldownData, Questao,
   TaxonomiaRelatorio, AlunoPontosCriticos,
   UsuarioAdmin, EscolaAgg, TaxonomiaNoFlat, TaxonomiaStats,
-  ProvaAdmin,
+  ProvaAdmin, ProvaEdicaoResp, MonitorProvaResp,
+  AlunoSessao, ProvaEmAberto, ProvaAlunoResp,
 } from "./types";
 import { getToken, removeToken } from "./auth";
+import { getAlunoToken, removeAlunoToken } from "./alunoAuth";
 
 const BASE =
   typeof window !== "undefined"
@@ -286,3 +288,159 @@ export const lancarRespostas = (
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ respostas }),
   });
+
+// ── Alunos (extendido com RA, CPF, DN) ────────────────────────────────────────
+export const createAlunoCompleto = (
+  turmaId: number,
+  data: { nome: string; ra: string; cpf?: string; data_nascimento?: string },
+) =>
+  req<Aluno>(`/turmas/${turmaId}/alunos`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+export const updateAlunoCompleto = (
+  alunoId: number,
+  data: { nome: string; ra: string; cpf?: string; data_nascimento?: string },
+) =>
+  req<Aluno>(`/alunos/${alunoId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+// ── Prova manual (professor) ──────────────────────────────────────────────────
+export const criarProvaManual = (data: {
+  titulo: string;
+  turma_id?: number | null;
+  disciplina?: string;
+  serie?: string;
+  tempo_limite_min?: number | null;
+}) =>
+  req<Prova>("/provas/manual", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+export const getProvaEdicao = (provaId: number) =>
+  req<ProvaEdicaoResp>(`/provas/${provaId}/edicao`);
+
+export const addQuestaoManual = (
+  provaId: number,
+  data: {
+    stem: string;
+    alternativas: string[];
+    gabarito: string;
+    tipo?: "multipla_escolha" | "verdadeiro_falso";
+    bloom_nivel?: number;
+    bloom_nome?: string;
+    bloom_verbo?: string;
+    taxonomia_codigo?: string;
+  },
+) =>
+  req<{ id: number; numero: number }>(`/provas/${provaId}/questoes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+export const updateQuestaoManual = (
+  provaId: number,
+  questaoId: number,
+  data: {
+    stem: string;
+    alternativas: string[];
+    gabarito: string;
+    tipo?: "multipla_escolha" | "verdadeiro_falso";
+    bloom_nivel?: number;
+    bloom_nome?: string;
+    bloom_verbo?: string;
+    taxonomia_codigo?: string;
+  },
+) =>
+  req<{ ok: boolean }>(`/provas/${provaId}/questoes/${questaoId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+export const deleteQuestao = (provaId: number, questaoId: number) =>
+  req<void>(`/provas/${provaId}/questoes/${questaoId}`, { method: "DELETE" });
+
+export const publicarProva = (provaId: number, tempoLimiteMin?: number | null) =>
+  req<{ ok: boolean; pin: string; total_questoes: number }>(`/provas/${provaId}/publicar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tempo_limite_min: tempoLimiteMin ?? null }),
+  });
+
+export const encerrarProva = (provaId: number) =>
+  req<{ ok: boolean }>(`/provas/${provaId}/encerrar`, { method: "POST" });
+
+export const getMonitorProva = (provaId: number) =>
+  req<MonitorProvaResp>(`/provas/${provaId}/monitor`);
+
+export const liberarReloginAluno = (provaId: number, alunoId: number) =>
+  req<{ ok: boolean }>(`/provas/${provaId}/alunos/${alunoId}/liberar-relogin`, { method: "POST" });
+
+// ── Aluno (público) ───────────────────────────────────────────────────────────
+async function reqAluno<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getAlunoToken();
+  const headers: Record<string, string> = {
+    ...(init?.headers as Record<string, string>),
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE}${path}`, { ...init, headers });
+
+  if (res.status === 401) {
+    removeAlunoToken();
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/aluno")) {
+      window.location.href = "/aluno";
+    }
+    throw new Error("Sessão expirada.");
+  }
+  if (!res.ok) {
+    const msg = await res.text().catch(() => res.statusText);
+    throw new Error(`[${res.status}] ${path}: ${msg}`);
+  }
+  if (res.status === 204) return undefined as T;
+  return res.json() as Promise<T>;
+}
+
+export const alunoLogin = (data: { nome: string; ra: string }) =>
+  reqAluno<{ token: string; aluno: AlunoSessao }>("/aluno/auth", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+export const alunoMe = () => reqAluno<AlunoSessao>("/aluno/me");
+
+export const alunoListarProvas = () =>
+  reqAluno<ProvaEmAberto[]>("/aluno/provas");
+
+export const alunoIniciarProva = (provaId: number, pin: string) =>
+  reqAluno<{ ok: boolean }>(`/aluno/provas/${provaId}/iniciar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pin }),
+  });
+
+export const alunoGetQuestoes = (provaId: number) =>
+  reqAluno<ProvaAlunoResp>(`/aluno/provas/${provaId}/questoes`);
+
+export const alunoResponder = (
+  provaId: number,
+  data: { questao_id: number; resposta: string; tempo_segundos?: number },
+) =>
+  reqAluno<{ ok: boolean }>(`/aluno/provas/${provaId}/responder`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+export const alunoFinalizar = (provaId: number) =>
+  reqAluno<{ ok: boolean }>(`/aluno/provas/${provaId}/finalizar`, { method: "POST" });

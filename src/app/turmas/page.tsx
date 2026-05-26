@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   UserPlus, ClipboardPaste, ArrowDown, Lock, Check, Pencil, Trash2, FileText, X as XIcon,
+  PlusCircle, Play,
 } from "lucide-react";
 import {
-  getTurmas, createTurma, getAlunos, createAluno, getProvas,
-  updateTurma, deleteTurma, updateAluno, deleteAluno,
+  getTurmas, createTurma, getAlunos, getProvas,
+  updateTurma, deleteTurma, deleteAluno,
+  createAlunoCompleto, updateAlunoCompleto,
 } from "@/lib/api";
 import type { Turma, Aluno, Prova } from "@/lib/types";
 import FlowBanner from "@/components/FlowBanner";
@@ -22,6 +25,7 @@ export default function TurmasPage() {
   const [turmaEscola, setTurmaEscola] = useState("");
   const [turmaDisc, setTurmaDisc] = useState("");
   const [alunoNome, setAlunoNome] = useState("");
+  const [alunoRa, setAlunoRa] = useState("");
   const [alunoTurmaId, setAlunoTurmaId] = useState<string>("");
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkNomes, setBulkNomes] = useState("");
@@ -52,10 +56,12 @@ export default function TurmasPage() {
   async function handleCreateAluno(e: React.FormEvent) {
     e.preventDefault();
     if (!alunoNome.trim() || !alunoTurmaId) return;
+    if (!alunoRa.trim()) { toast.err("Informe o R.A. do aluno."); return; }
     try {
-      await createAluno(Number(alunoTurmaId), alunoNome);
+      await createAlunoCompleto(Number(alunoTurmaId), { nome: alunoNome.trim(), ra: alunoRa.trim() });
       const nome = alunoNome;
       setAlunoNome("");
+      setAlunoRa("");
       toast.ok(`Aluno "${nome}" adicionado!`);
       await load();
     } catch (err) {
@@ -63,24 +69,55 @@ export default function TurmasPage() {
     }
   }
 
+  /** Parseia linha do bulk: aceita "Nome\tRA", "Nome - RA", "Nome;RA", "Nome,RA", "RA Nome" e "Nome" puro */
+  function parseBulkLine(linha: string): { nome: string; ra: string } | null {
+    const l = linha.trim();
+    if (!l) return null;
+    // Tab
+    if (l.includes("\t")) {
+      const [a, b] = l.split("\t").map(x => x.trim());
+      return inferirOrdem(a, b);
+    }
+    // ;  ou  ,  (não pega vírgulas dentro do nome — só se tiver apenas 2 campos)
+    for (const sep of [";", " - ", " — ", " – ", ","]) {
+      const partes = l.split(sep);
+      if (partes.length === 2) {
+        const [a, b] = partes.map(x => x.trim());
+        if (a && b) return inferirOrdem(a, b);
+      }
+    }
+    // Só nome (sem RA): ainda permite
+    return { nome: l, ra: "" };
+  }
+
+  function inferirOrdem(a: string, b: string): { nome: string; ra: string } {
+    // Se a é puramente numérico, a é o RA
+    if (/^\d+$/.test(a)) return { nome: b, ra: a };
+    return { nome: a, ra: b };
+  }
+
   async function handleBulkImport(e: React.FormEvent) {
     e.preventDefault();
     if (!alunoTurmaId || !bulkNomes.trim()) return;
-    const nomes = bulkNomes.split("\n").map(n => n.trim()).filter(Boolean);
-    if (nomes.length === 0) return;
+    const linhas = bulkNomes.split("\n").map(parseBulkLine).filter(Boolean) as { nome: string; ra: string }[];
+    if (linhas.length === 0) return;
     setBulkLoading(true);
-    let ok = 0, fail = 0;
-    for (const nome of nomes) {
-      try { await createAluno(Number(alunoTurmaId), nome); ok++; }
-      catch { fail++; }
+    let ok = 0, fail = 0, semRa = 0;
+    for (const { nome, ra } of linhas) {
+      try {
+        await createAlunoCompleto(Number(alunoTurmaId), { nome, ra });
+        ok++;
+        if (!ra) semRa++;
+      } catch { fail++; }
     }
     setBulkNomes("");
     setBulkLoading(false);
-    if (fail > 0) {
-      toast.warn(`${ok} aluno(s) importado(s), ${fail} falharam.`);
-    } else {
-      toast.ok(`${ok} aluno${ok !== 1 ? "s" : ""} importado${ok !== 1 ? "s" : ""} com sucesso!`);
-    }
+    const parts = [];
+    if (ok) parts.push(`${ok} aluno${ok !== 1 ? "s" : ""} importado${ok !== 1 ? "s" : ""}`);
+    if (semRa) parts.push(`${semRa} sem R.A.`);
+    if (fail) parts.push(`${fail} falharam`);
+    if (fail > 0) toast.warn(parts.join(", "));
+    else toast.ok(parts.join(", "));
     await load();
   }
 
@@ -88,8 +125,15 @@ export default function TurmasPage() {
     <div>
       <FlowBanner step={1} />
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">👥 Turmas e Alunos</h1>
-      <p className="text-gray-500 mb-5">Gerencie suas turmas e alunos para vincular às provas.</p>
+      <div className="flex items-start justify-between flex-wrap gap-3 mb-5">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">👥 Turmas e Alunos</h1>
+          <p className="text-gray-500">Gerencie suas turmas e alunos para vincular às provas.</p>
+        </div>
+        <Link href="/criar-prova" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm">
+          <PlusCircle size={16} /> Criar prova
+        </Link>
+      </div>
 
       <InfoBox variant="info" title="Por que cadastrar turmas e alunos?" className="mb-6">
         <ul className="space-y-1">
@@ -186,27 +230,33 @@ export default function TurmasPage() {
             </div>
 
             {!bulkMode ? (
-              <form onSubmit={handleCreateAluno} className="space-y-3">
-                <div>
+              <form onSubmit={handleCreateAluno} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
                   <label className="label">Nome do aluno</label>
                   <input className="input" placeholder="Nome completo" value={alunoNome} onChange={e => setAlunoNome(e.target.value)} />
                 </div>
-                <button type="submit" disabled={!alunoTurmaId || !alunoNome.trim()} className="btn-primary w-full md:w-auto md:px-8">
-                  Adicionar aluno
-                </button>
+                <div>
+                  <label className="label">R.A.</label>
+                  <input className="input" placeholder="Registro Acadêmico" value={alunoRa} onChange={e => setAlunoRa(e.target.value)} />
+                </div>
+                <div className="sm:col-span-3">
+                  <button type="submit" disabled={!alunoTurmaId || !alunoNome.trim() || !alunoRa.trim()} className="btn-primary w-full md:w-auto md:px-8">
+                    Adicionar aluno
+                  </button>
+                </div>
               </form>
             ) : (
               <form onSubmit={handleBulkImport} className="space-y-3">
                 <div>
-                  <label className="label">📋 Cole abaixo a lista de nomes — um por linha:</label>
+                  <label className="label">📋 Cole a lista — uma linha por aluno, no formato <code className="bg-gray-100 px-1 rounded">Nome - RA</code> (ou Tab/ponto-e-vírgula):</label>
                   <textarea
                     className="input min-h-[160px] resize-y font-mono text-sm"
-                    placeholder={"Ana Carolina Silva\nBruno Mendes Costa\nCarlos Eduardo Lima"}
+                    placeholder={"Ana Carolina Silva - 123456\nBruno Mendes Costa\t654321\nCarlos Eduardo Lima;789012"}
                     value={bulkNomes}
                     onChange={e => setBulkNomes(e.target.value)}
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    {bulkNomes.split("\n").filter(n => n.trim()).length} aluno(s) na lista
+                    {bulkNomes.split("\n").filter(n => n.trim()).length} aluno(s) na lista · alunos sem R.A. serão cadastrados mas não conseguirão fazer login
                   </p>
                 </div>
                 <button
@@ -281,6 +331,7 @@ function TurmaRow({ turma, open, onToggle, onChanged }: TurmaRowProps) {
   const [tDisc, setTDisc] = useState(turma.disciplina ?? "");
   const [editingAlunoId, setEditingAlunoId] = useState<number | null>(null);
   const [editAlunoNome, setEditAlunoNome] = useState("");
+  const [editAlunoRa, setEditAlunoRa] = useState("");
 
   async function load() {
     const [a, p] = await Promise.all([
@@ -323,7 +374,7 @@ function TurmaRow({ turma, open, onToggle, onChanged }: TurmaRowProps) {
   async function handleSaveAluno(alunoId: number) {
     if (!editAlunoNome.trim()) return;
     try {
-      await updateAluno(alunoId, editAlunoNome.trim());
+      await updateAlunoCompleto(alunoId, { nome: editAlunoNome.trim(), ra: editAlunoRa.trim() });
       setEditingAlunoId(null);
       toast.ok("Aluno atualizado!");
       await load();
@@ -405,7 +456,15 @@ function TurmaRow({ turma, open, onToggle, onChanged }: TurmaRowProps) {
                             value={editAlunoNome}
                             onChange={e => setEditAlunoNome(e.target.value)}
                             className="input flex-1 text-sm py-1.5"
+                            placeholder="Nome"
                             autoFocus
+                            onKeyDown={e => { if (e.key === "Enter") handleSaveAluno(a.id); if (e.key === "Escape") setEditingAlunoId(null); }}
+                          />
+                          <input
+                            value={editAlunoRa}
+                            onChange={e => setEditAlunoRa(e.target.value)}
+                            className="input w-28 text-sm py-1.5"
+                            placeholder="R.A."
                             onKeyDown={e => { if (e.key === "Enter") handleSaveAluno(a.id); if (e.key === "Escape") setEditingAlunoId(null); }}
                           />
                           <button onClick={() => handleSaveAluno(a.id)} className="text-green-600 hover:text-green-800 p-1" title="Salvar">
@@ -418,11 +477,16 @@ function TurmaRow({ turma, open, onToggle, onChanged }: TurmaRowProps) {
                       ) : (
                         <>
                           <span className="w-1.5 h-1.5 bg-blue-400 rounded-full flex-shrink-0" />
-                          <span className="flex-1">{a.nome}</span>
+                          <span className="flex-1 truncate">{a.nome}</span>
+                          {a.ra ? (
+                            <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">{a.ra}</span>
+                          ) : (
+                            <span className="text-xs text-amber-600" title="Sem R.A. - aluno não conseguirá fazer login">⚠ sem RA</span>
+                          )}
                           <button
-                            onClick={() => { setEditingAlunoId(a.id); setEditAlunoNome(a.nome); }}
+                            onClick={() => { setEditingAlunoId(a.id); setEditAlunoNome(a.nome); setEditAlunoRa(a.ra ?? ""); }}
                             className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 p-1 transition-opacity"
-                            title="Editar nome do aluno"
+                            title="Editar aluno"
                             aria-label="Editar aluno"
                           >
                             <Pencil size={12} />
@@ -450,15 +514,29 @@ function TurmaRow({ turma, open, onToggle, onChanged }: TurmaRowProps) {
                 <p className="text-sm text-gray-400">Nenhuma prova analisada.</p>
               ) : (
                 <div className="space-y-1">
-                  {provas.map(p => (
-                    <div key={p.id} className="text-sm text-gray-700 flex items-start gap-2" title={p.arquivo_nome}>
-                      <FileText size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
-                      <div className="min-w-0">
-                        <div className="font-medium truncate">{nomeAmigavelProva(p)}</div>
-                        <div className="text-xs text-gray-400">{p.serie} — {p.total_questoes} questões — {p.criado_em.slice(0, 10)}</div>
+                  {provas.map(p => {
+                    const status = p.status ?? "";
+                    const podeMonitorar = status === "publicada" || status === "encerrada";
+                    return (
+                      <div key={p.id} className="text-sm text-gray-700 flex items-start gap-2 group" title={p.arquivo_nome}>
+                        <FileText size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium truncate">{nomeAmigavelProva(p)}</div>
+                          <div className="text-xs text-gray-400">
+                            {p.total_questoes} questões · {p.criado_em.slice(0, 10)}
+                            {status === "publicada" && <span className="ml-2 text-emerald-600 font-semibold">● aberta</span>}
+                            {status === "rascunho" && <span className="ml-2 text-amber-600">rascunho</span>}
+                            {status === "encerrada" && <span className="ml-2 text-gray-500">encerrada</span>}
+                          </div>
+                        </div>
+                        {podeMonitorar && (
+                          <Link href={`/aplicar/${p.id}`} className="text-xs text-blue-700 hover:underline flex items-center gap-1 mt-0.5">
+                            <Play size={10} /> Monitor
+                          </Link>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

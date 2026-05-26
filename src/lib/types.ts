@@ -10,8 +10,14 @@ export interface Aluno {
   id: number;
   nome: string;
   turma_id: number;
+  ra?: string;
+  cpf?: string;
+  data_nascimento?: string;
   criado_em?: string;
 }
+
+export type ProvaStatus = "rascunho" | "publicada" | "encerrada";
+export type ProvaOrigem = "ocr" | "manual";
 
 export interface Prova {
   id: number;
@@ -22,7 +28,102 @@ export interface Prova {
   arquivo_nome: string;
   ocr_method: string;
   total_questoes: number;
+  origem?: ProvaOrigem;
+  status?: ProvaStatus;
+  pin?: string;
+  tempo_limite_min?: number | null;
+  publicada_em?: string | null;
+  encerrada_em?: string | null;
   criado_em: string;
+}
+
+// Questão de prova manual (com alternativas inline e gabarito visível para professor)
+export interface QuestaoEdicao {
+  id: number;
+  prova_id: number;
+  numero: number;
+  stem: string;
+  tipo: TipoQuestao;
+  alternativas: string[];
+  gabarito: string;
+  bloom_nivel: number;
+  bloom_nome: string;
+  bloom_verbo?: string;
+  taxonomia_codigo?: string;
+}
+
+export interface ProvaEdicaoResp {
+  prova: Prova;
+  questoes: QuestaoEdicao[];
+}
+
+// Monitor de aplicação ao vivo
+export type AlunoAcessoStatus = "aguardando" | "em_andamento" | "finalizado" | "aguardando_relogin";
+
+export interface AlunoAcesso {
+  aluno_id: number;
+  aluno_nome: string;
+  ra?: string;
+  started_at?: string | null;
+  finished_at?: string | null;
+  fingerprint?: string | null;
+  liberado_em?: string | null;
+  ip?: string | null;
+  user_agent?: string | null;
+  status: AlunoAcessoStatus;
+}
+
+export interface MonitorProvaResp {
+  prova: {
+    id: number;
+    titulo: string;
+    status: ProvaStatus;
+    pin?: string;
+    publicada_em?: string | null;
+    encerrada_em?: string | null;
+    total_questoes: number;
+  };
+  acessos: AlunoAcesso[];
+}
+
+// Aluno (sessão pública)
+export interface AlunoSessao {
+  id: number;
+  nome: string;
+  ra: string;
+  turma_id?: number;
+}
+
+export interface ProvaEmAberto {
+  id: number;
+  titulo: string;
+  disciplina: string;
+  serie: string;
+  total_questoes: number;
+  tempo_limite_min?: number | null;
+  publicada_em: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+export interface QuestaoParaAluno {
+  id: number;
+  numero: number;
+  stem: string;
+  alternativas: string[];
+  tipo: TipoQuestao;
+}
+
+export interface ProvaAlunoResp {
+  prova: {
+    id: number;
+    titulo: string;
+    disciplina: string;
+    total_questoes: number;
+    tempo_limite_min?: number | null;
+  };
+  started_at: string;
+  questoes: QuestaoParaAluno[];
 }
 
 export interface BnccSkill {
