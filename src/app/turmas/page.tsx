@@ -10,6 +10,7 @@ import {
   getTurmas, createTurma, getAlunos, getProvas,
   updateTurma, deleteTurma, deleteAluno,
   createAlunoCompleto, updateAlunoCompleto,
+  listarEtapas, type EtapaPublica,
 } from "@/lib/api";
 import type { Turma, Aluno, Prova } from "@/lib/types";
 import FlowBanner from "@/components/FlowBanner";
@@ -24,6 +25,8 @@ export default function TurmasPage() {
   const [turmaNome, setTurmaNome] = useState("");
   const [turmaEscola, setTurmaEscola] = useState("");
   const [turmaDisc, setTurmaDisc] = useState("");
+  const [turmaEtapa, setTurmaEtapa] = useState("");
+  const [etapas, setEtapas] = useState<EtapaPublica[]>([]);
   const [alunoNome, setAlunoNome] = useState("");
   const [alunoRa, setAlunoRa] = useState("");
   const [alunoTurmaId, setAlunoTurmaId] = useState<string>("");
@@ -37,20 +40,46 @@ export default function TurmasPage() {
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    listarEtapas().then(setEtapas).catch(() => setEtapas([]));
+  }, []);
 
   async function handleCreateTurma(e: React.FormEvent) {
     e.preventDefault();
     if (!turmaNome.trim()) return;
     try {
-      await createTurma({ nome: turmaNome, escola: turmaEscola, disciplina: turmaDisc });
+      await createTurma({ nome: turmaNome, escola: turmaEscola, disciplina: turmaDisc, etapa: turmaEtapa });
       const nome = turmaNome;
-      setTurmaNome(""); setTurmaEscola(""); setTurmaDisc("");
+      setTurmaNome(""); setTurmaEscola(""); setTurmaDisc(""); setTurmaEtapa("");
       toast.ok(`Turma "${nome}" criada com sucesso!`);
       await load();
     } catch (err) {
       toast.err(err instanceof Error ? err.message : "Erro ao criar turma.");
     }
+  }
+
+  // Helper para renderizar select de etapa agrupado por etapa_grupo
+  const GRUPO_LABELS: Record<string, string> = {
+    basica: "Educação básica",
+    superior: "Ensino superior",
+    tecnico: "Cursos técnicos (ETEC)",
+  };
+  function renderEtapaOptions() {
+    const grupos: Record<string, EtapaPublica[]> = {};
+    const ordemGrupos: string[] = [];
+    for (const e of etapas) {
+      const g = e.etapa_grupo || "outros";
+      if (!(g in grupos)) { grupos[g] = []; ordemGrupos.push(g); }
+      grupos[g].push(e);
+    }
+    return ordemGrupos.map(g => (
+      <optgroup key={g} label={GRUPO_LABELS[g] ?? g}>
+        {grupos[g].map(e => (
+          <option key={e.etapa} value={e.etapa}>{e.etapa_label}</option>
+        ))}
+      </optgroup>
+    ));
   }
 
   async function handleCreateAluno(e: React.FormEvent) {
@@ -155,21 +184,38 @@ export default function TurmasPage() {
             <p className="text-xs text-gray-500">Cadastre o nome da turma, escola e disciplina principal.</p>
           </div>
         </div>
-        <form onSubmit={handleCreateTurma} className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <form onSubmit={handleCreateTurma} className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="label">Nome da turma</label>
             <input className="input" placeholder="Ex: 8º ano B" value={turmaNome} onChange={e => setTurmaNome(e.target.value)} />
           </div>
           <div>
             <label className="label">Escola</label>
-            <input className="input" placeholder="Ex: E.E. João da Silva" value={turmaEscola} onChange={e => setTurmaEscola(e.target.value)} />
+            <input className="input" placeholder="Ex: ETEC Juscelino Kubitschek" value={turmaEscola} onChange={e => setTurmaEscola(e.target.value)} />
           </div>
           <div>
-            <label className="label">Disciplina <span className="text-gray-400 font-normal">(opcional)</span></label>
+            <label className="label">Etapa / Curso <span className="text-red-600 font-normal">*</span></label>
+            <select
+              className="input"
+              value={turmaEtapa}
+              onChange={e => setTurmaEtapa(e.target.value)}
+              required
+            >
+              <option value="">— Selecione —</option>
+              {renderEtapaOptions()}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Define quais disciplinas e módulos vão aparecer ao criar uma prova dessa turma.
+            </p>
+          </div>
+          <div>
+            <label className="label">Disciplina foco <span className="text-gray-400 font-normal">(opcional)</span></label>
             <input className="input" placeholder="Ex: Matemática" value={turmaDisc} onChange={e => setTurmaDisc(e.target.value)} />
           </div>
-          <div className="md:col-span-3">
-            <button type="submit" className="btn-primary w-full md:w-auto md:px-8">Criar turma</button>
+          <div className="md:col-span-2">
+            <button type="submit" disabled={!turmaNome.trim() || !turmaEtapa} className="btn-primary w-full md:w-auto md:px-8 disabled:opacity-50 disabled:cursor-not-allowed">
+              Criar turma
+            </button>
           </div>
         </form>
       </div>
@@ -329,9 +375,17 @@ function TurmaRow({ turma, open, onToggle, onChanged }: TurmaRowProps) {
   const [tNome, setTNome] = useState(turma.nome);
   const [tEscola, setTEscola] = useState(turma.escola);
   const [tDisc, setTDisc] = useState(turma.disciplina ?? "");
+  const [tEtapa, setTEtapa] = useState(turma.etapa ?? "");
+  const [etapasEdit, setEtapasEdit] = useState<EtapaPublica[]>([]);
   const [editingAlunoId, setEditingAlunoId] = useState<number | null>(null);
   const [editAlunoNome, setEditAlunoNome] = useState("");
   const [editAlunoRa, setEditAlunoRa] = useState("");
+
+  useEffect(() => {
+    if (editingTurma && etapasEdit.length === 0) {
+      listarEtapas().then(setEtapasEdit).catch(() => {});
+    }
+  }, [editingTurma, etapasEdit.length]);
 
   async function load() {
     const [a, p] = await Promise.all([
@@ -351,7 +405,12 @@ function TurmaRow({ turma, open, onToggle, onChanged }: TurmaRowProps) {
   async function handleSaveTurma() {
     if (!tNome.trim()) { toast.err("Nome da turma não pode ficar vazio."); return; }
     try {
-      await updateTurma(turma.id, { nome: tNome.trim(), escola: tEscola.trim(), disciplina: tDisc.trim() });
+      await updateTurma(turma.id, {
+        nome: tNome.trim(),
+        escola: tEscola.trim(),
+        disciplina: tDisc.trim(),
+        etapa: tEtapa,
+      });
       setEditingTurma(false);
       toast.ok("Turma atualizada!");
       onChanged();
@@ -402,6 +461,15 @@ function TurmaRow({ turma, open, onToggle, onChanged }: TurmaRowProps) {
             <div className="min-w-0">
               <span className="font-semibold text-gray-900">{turma.nome}</span>
               {turma.escola && <><span className="text-gray-400 mx-2">—</span><span className="text-gray-600">{turma.escola}</span></>}
+              {turma.etapa ? (
+                <span className="ml-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                  {turma.etapa}
+                </span>
+              ) : (
+                <span className="ml-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded" title="Defina a etapa para que as disciplinas certas apareçam ao criar prova">
+                  ⚠ sem etapa
+                </span>
+              )}
               {turma.disciplina && <span className="ml-2 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{turma.disciplina}</span>}
             </div>
             <span className="text-gray-400 text-xs flex-shrink-0">{open ? "Ver alunos e provas ▲" : "Ver alunos e provas ▼"}</span>
@@ -426,13 +494,43 @@ function TurmaRow({ turma, open, onToggle, onChanged }: TurmaRowProps) {
           </div>
         </div>
       ) : (
-        <div className="px-5 py-4 bg-blue-50 border-l-4 border-blue-500 grid grid-cols-1 md:grid-cols-3 gap-3">
-          <input className="input" value={tNome} onChange={e => setTNome(e.target.value)} placeholder="Nome da turma" />
-          <input className="input" value={tEscola} onChange={e => setTEscola(e.target.value)} placeholder="Escola" />
-          <input className="input" value={tDisc} onChange={e => setTDisc(e.target.value)} placeholder="Disciplina" />
-          <div className="md:col-span-3 flex gap-2">
+        <div className="px-5 py-4 bg-blue-50 border-l-4 border-blue-500 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="label text-xs">Nome</label>
+            <input className="input" value={tNome} onChange={e => setTNome(e.target.value)} placeholder="Nome da turma" />
+          </div>
+          <div>
+            <label className="label text-xs">Escola</label>
+            <input className="input" value={tEscola} onChange={e => setTEscola(e.target.value)} placeholder="Escola" />
+          </div>
+          <div>
+            <label className="label text-xs">Etapa / Curso</label>
+            <select className="input" value={tEtapa} onChange={e => setTEtapa(e.target.value)}>
+              <option value="">— Sem etapa definida —</option>
+              {(() => {
+                const grupos: Record<string, EtapaPublica[]> = {};
+                const ord: string[] = [];
+                for (const e of etapasEdit) {
+                  const g = e.etapa_grupo || "outros";
+                  if (!(g in grupos)) { grupos[g] = []; ord.push(g); }
+                  grupos[g].push(e);
+                }
+                const GRUPOS: Record<string, string> = { basica: "Educação básica", superior: "Ensino superior", tecnico: "Cursos técnicos (ETEC)" };
+                return ord.map(g => (
+                  <optgroup key={g} label={GRUPOS[g] ?? g}>
+                    {grupos[g].map(e => <option key={e.etapa} value={e.etapa}>{e.etapa_label}</option>)}
+                  </optgroup>
+                ));
+              })()}
+            </select>
+          </div>
+          <div>
+            <label className="label text-xs">Disciplina foco (opcional)</label>
+            <input className="input" value={tDisc} onChange={e => setTDisc(e.target.value)} placeholder="Disciplina" />
+          </div>
+          <div className="md:col-span-2 flex gap-2">
             <button onClick={handleSaveTurma} className="btn-primary text-sm">Salvar</button>
-            <button onClick={() => { setEditingTurma(false); setTNome(turma.nome); setTEscola(turma.escola); setTDisc(turma.disciplina ?? ""); }} className="btn-secondary text-sm">Cancelar</button>
+            <button onClick={() => { setEditingTurma(false); setTNome(turma.nome); setTEscola(turma.escola); setTDisc(turma.disciplina ?? ""); setTEtapa(turma.etapa ?? ""); }} className="btn-secondary text-sm">Cancelar</button>
           </div>
         </div>
       )}

@@ -6,13 +6,31 @@ import { Plus, Trash2, ArrowLeft, CheckCircle2, Send, Sparkles, ChevronDown, Che
 import {
   getTurmas, criarProvaManual, getProvaEdicao,
   addQuestaoManual, updateQuestaoManual, deleteQuestao, publicarProva,
+  getTurmaContexto,
 } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { SUBJECT_GROUPS, YEAR_GROUPS, BLOOM_NAMES, BLOOM_COLORS } from "@/lib/constants";
-import type { Turma, QuestaoEdicao } from "@/lib/types";
+import type { Turma, QuestaoEdicao, TurmaContexto } from "@/lib/types";
 
 type Etapa = "metadados" | "questoes" | "publicar";
 type TipoQ = "multipla_escolha" | "verdadeiro_falso";
+
+// Mapeia slug de etapa (curso_logistica, ef2, etc) ao label do grupo de séries
+// dentro de YEAR_GROUPS. Quando o frontend conhecer um match, filtra o select
+// de série; caso contrario mostra todas as opcoes.
+function gruposParaEtapa(etapa: string): string[] {
+  if (!etapa) return [];
+  if (etapa === "ef1") return ["Ensino Fundamental"];
+  if (etapa === "ef2") return ["Ensino Fundamental"];
+  if (etapa === "em") return ["Ensino Médio"];
+  if (etapa === "superior") return ["Graduação", "Pós-graduação"];
+  if (etapa === "curso_dse") return ["Téc. Desenvolvimento de Sistemas (ETEC)"];
+  if (etapa === "curso_administracao") return ["Téc. Administração (ETEC)"];
+  if (etapa === "curso_logistica") return ["Téc. Logística (ETEC)"];
+  if (etapa === "curso_iw") return ["Téc. Informática para Internet (ETEC)"];
+  if (etapa === "curso_financas") return ["Téc. Finanças (ETEC)"];
+  return [];
+}
 
 export default function CriarProvaPage() {
   const router = useRouter();
@@ -25,10 +43,33 @@ export default function CriarProvaPage() {
   // Metadados
   const [titulo, setTitulo] = useState("");
   const [turmaId, setTurmaId] = useState("");
+  const [contexto, setContexto] = useState<TurmaContexto | null>(null); // dados da etapa da turma
   const [disciplina, setDisciplina] = useState("");
   const [serie, setSerie] = useState("");
   const [tempoLimite, setTempoLimite] = useState<string>("");
   const [savingMeta, setSavingMeta] = useState(false);
+
+  // Cada vez que a turma muda, busca o contexto (etapa + materias) e zera os
+  // selects encadeados se nao baterem com a nova etapa.
+  useEffect(() => {
+    if (!turmaId) { setContexto(null); setDisciplina(""); setSerie(""); return; }
+    let cancelado = false;
+    getTurmaContexto(Number(turmaId))
+      .then(ctx => {
+        if (cancelado) return;
+        setContexto(ctx);
+        // Reseta selects se ja estavam preenchidos com valores incompatíveis
+        if (ctx.tem_filtro) {
+          const matsValidas = new Set(ctx.materias.map(m => m.label));
+          if (disciplina && !matsValidas.has(disciplina)) setDisciplina("");
+          // Auto-preenche serie se a etapa for de curso técnico
+          // (geralmente 1º/2º/3º Módulo - vamos derivar dos YEAR_GROUPS)
+        }
+      })
+      .catch(() => setContexto(null));
+    return () => { cancelado = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turmaId]);
 
   // Questões
   const [questoes, setQuestoes] = useState<QuestaoEdicao[]>([]);
@@ -223,13 +264,25 @@ export default function CriarProvaPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="label">Turma</label>
-                <select className="input" value={turmaId} onChange={e => setTurmaId(e.target.value)}>
+                <label className="label">Turma <span className="text-red-600">*</span></label>
+                <select className="input" value={turmaId} onChange={e => setTurmaId(e.target.value)} required>
                   <option value="">— Selecione —</option>
                   {turmas.map(t => (
-                    <option key={t.id} value={t.id}>{t.nome} {t.escola ? `(${t.escola})` : ""}</option>
+                    <option key={t.id} value={t.id}>
+                      {t.nome} {t.escola ? `(${t.escola})` : ""}{t.etapa ? "" : " ⚠"}
+                    </option>
                   ))}
                 </select>
+                {turmaId && contexto && contexto.tem_filtro && (
+                  <p className="text-xs text-emerald-700 mt-1">
+                    Etapa: <strong>{contexto.etapa_label}</strong> — as opções abaixo foram filtradas.
+                  </p>
+                )}
+                {turmaId && contexto && !contexto.tem_filtro && (
+                  <p className="text-xs text-amber-700 mt-1">
+                    ⚠ Esta turma não tem etapa definida. Edite a turma em <a href="/turmas" className="underline">Turmas</a> para que as disciplinas e módulos certos apareçam aqui.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="label">Tempo limite (minutos, opcional)</label>
@@ -241,24 +294,50 @@ export default function CriarProvaPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Disciplina</label>
-                <select className="input" value={disciplina} onChange={e => setDisciplina(e.target.value)}>
-                  <option value="">— Selecione —</option>
-                  {SUBJECT_GROUPS.map(g => (
-                    <optgroup key={g.label} label={g.label}>
-                      {g.options.map(o => <option key={o} value={o}>{o}</option>)}
-                    </optgroup>
-                  ))}
+                <select
+                  className="input"
+                  value={disciplina}
+                  onChange={e => setDisciplina(e.target.value)}
+                  disabled={!turmaId}
+                >
+                  <option value="">{turmaId ? "— Selecione —" : "Escolha a turma primeiro"}</option>
+                  {contexto && contexto.tem_filtro ? (
+                    /* Filtrado pela etapa da turma — só disciplinas daquela etapa */
+                    contexto.materias.map(m => (
+                      <option key={m.materia} value={m.label}>{m.label}</option>
+                    ))
+                  ) : (
+                    /* Sem filtro (turma sem etapa) — mostra tudo */
+                    SUBJECT_GROUPS.map(g => (
+                      <optgroup key={g.label} label={g.label}>
+                        {g.options.map(o => <option key={o} value={o}>{o}</option>)}
+                      </optgroup>
+                    ))
+                  )}
                 </select>
               </div>
               <div>
                 <label className="label">Série / Módulo</label>
-                <select className="input" value={serie} onChange={e => setSerie(e.target.value)}>
-                  <option value="">— Selecione —</option>
-                  {YEAR_GROUPS.map(g => (
-                    <optgroup key={g.label} label={g.label}>
-                      {g.options.map(o => <option key={o} value={o}>{o}</option>)}
-                    </optgroup>
-                  ))}
+                <select
+                  className="input"
+                  value={serie}
+                  onChange={e => setSerie(e.target.value)}
+                  disabled={!turmaId}
+                >
+                  <option value="">{turmaId ? "— Selecione —" : "Escolha a turma primeiro"}</option>
+                  {(() => {
+                    const gruposPermitidos = contexto && contexto.tem_filtro
+                      ? new Set(gruposParaEtapa(contexto.etapa))
+                      : null;
+                    const filtrados = gruposPermitidos
+                      ? YEAR_GROUPS.filter(g => gruposPermitidos.has(g.label))
+                      : YEAR_GROUPS;
+                    return filtrados.map(g => (
+                      <optgroup key={g.label} label={g.label}>
+                        {g.options.map(o => <option key={o} value={o}>{o}</option>)}
+                      </optgroup>
+                    ));
+                  })()}
                 </select>
               </div>
             </div>

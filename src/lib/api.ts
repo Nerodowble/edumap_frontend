@@ -5,6 +5,7 @@ import type {
   UsuarioAdmin, EscolaAgg, TaxonomiaNoFlat, TaxonomiaStats,
   ProvaAdmin, ProvaEdicaoResp, MonitorProvaResp,
   AlunoSessao, ProvaEmAberto, ProvaAlunoResp,
+  TurmaContexto,
 } from "./types";
 import { getToken, removeToken } from "./auth";
 import { getAlunoToken, removeAlunoToken } from "./alunoAuth";
@@ -56,7 +57,7 @@ export const getMe = () =>
 // ── Turmas ────────────────────────────────────────────────────────────────────
 export const getTurmas = () => req<Turma[]>("/turmas");
 
-export const createTurma = (data: { nome: string; escola: string; disciplina?: string }) =>
+export const createTurma = (data: { nome: string; escola: string; disciplina?: string; etapa?: string }) =>
   req<Turma>("/turmas", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -66,12 +67,29 @@ export const createTurma = (data: { nome: string; escola: string; disciplina?: s
 export const deleteTurma = (id: number) =>
   req<void>(`/turmas/${id}`, { method: "DELETE" });
 
-export const updateTurma = (id: number, data: { nome: string; escola: string; disciplina?: string }) =>
+export const updateTurma = (
+  id: number,
+  data: { nome: string; escola: string; disciplina?: string; etapa?: string | null },
+) =>
   req<Turma>(`/turmas/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+
+export const getTurmaContexto = (id: number) =>
+  req<TurmaContexto>(`/turmas/${id}/contexto`);
+
+// Lista publica de etapas (para professor escolher ao criar turma)
+export interface EtapaPublica {
+  etapa: string;
+  total_nos: number;
+  total_materias: number;
+  etapa_label: string;
+  etapa_grupo: string;
+  etapa_ordem?: number;
+}
+export const listarEtapas = () => req<EtapaPublica[]>("/etapas");
 
 // ── Alunos ────────────────────────────────────────────────────────────────────
 export const getAlunos = (turmaId: number) =>

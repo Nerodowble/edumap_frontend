@@ -3,7 +3,22 @@ export interface Turma {
   nome: string;
   escola: string;
   disciplina?: string;
+  etapa?: string;  // slug: curso_logistica, ef2, superior...
   criado_em: string;
+}
+
+export interface MateriaInfo {
+  materia: string;       // slug (ex: suprimentos_estoques)
+  label: string;         // label legivel (ex: "Suprimentos e Gestão de Estoques")
+  total_nos: number;
+}
+
+export interface TurmaContexto {
+  etapa: string;
+  etapa_label: string;
+  etapa_grupo: string;
+  materias: MateriaInfo[];
+  tem_filtro: boolean;
 }
 
 export interface Aluno {
