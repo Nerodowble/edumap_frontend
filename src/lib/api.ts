@@ -182,8 +182,37 @@ export async function downloadRelatorioPdf(provaId: number, suggestedName = `rel
 export const adminListUsuarios = () =>
   req<UsuarioAdmin[]>("/admin/usuarios");
 
+export const adminUpdateUsuario = (
+  id: number,
+  data: { nome?: string; role?: string; escola?: string },
+) =>
+  req<UsuarioAdmin>(`/admin/usuarios/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+export const adminDeleteUsuario = (id: number) =>
+  req<void>(`/admin/usuarios/${id}`, { method: "DELETE" });
+
 export const adminListEscolas = () =>
   req<EscolaAgg[]>("/admin/escolas");
+
+export const adminRenameEscola = (nomeAntigo: string, nomeNovo: string) =>
+  req<{ ok: boolean; usuarios_atualizados: number; turmas_atualizadas: number }>(
+    `/admin/escolas/${encodeURIComponent(nomeAntigo)}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nome_novo: nomeNovo }),
+    },
+  );
+
+export const adminDeleteEscola = (nome: string) =>
+  req<{ ok: boolean; usuarios_deletados: number; turmas_deletadas: number }>(
+    `/admin/escolas/${encodeURIComponent(nome)}`,
+    { method: "DELETE" },
+  );
 
 export interface EtapaInfo {
   etapa: string;

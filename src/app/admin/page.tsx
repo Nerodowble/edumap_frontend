@@ -11,9 +11,12 @@ import {
   adminListProvas, adminDeleteProva,
   adminListEtapas, downloadTaxonomiaTemplate, downloadTaxonomiaExport,
   adminReclassificarPreview, adminReclassificar,
+  adminUpdateUsuario, adminDeleteUsuario,
+  adminRenameEscola, adminDeleteEscola,
   type ReclassificarPreview, type ReclassificarResp,
   type EtapaInfo,
 } from "@/lib/api";
+import { useToast } from "@/components/Toast";
 import type {
   UsuarioAdmin, EscolaAgg, TaxonomiaStats, TaxonomiaNoFlat,
   ProvaAdmin,
@@ -70,15 +73,39 @@ export default function AdminPage() {
 // ──────────────────────────────────────────────────────────────────────────────
 
 function UsuariosPanel() {
+  const toast = useToast();
   const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editando, setEditando] = useState<UsuarioAdmin | null>(null);
+  const meId = getUser()?.email; // identifica usuario logado pra travar auto-delecao
 
-  useEffect(() => {
-    adminListUsuarios()
-      .then(setUsuarios)
-      .catch(() => setUsuarios([]))
-      .finally(() => setLoading(false));
-  }, []);
+  async function load() {
+    setLoading(true);
+    try {
+      setUsuarios(await adminListUsuarios());
+    } catch {
+      setUsuarios([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function handleDelete(u: UsuarioAdmin) {
+    if (u.email === meId) {
+      toast.err("Você não pode deletar sua própria conta.");
+      return;
+    }
+    if (!confirm(`Apagar o usuário "${u.nome}" (${u.email})? As turmas dele ficarão sem dono. Esta ação não pode ser desfeita.`)) return;
+    try {
+      await adminDeleteUsuario(u.id);
+      toast.ok(`Usuário "${u.nome}" removido.`);
+      await load();
+    } catch (e) {
+      toast.err(e instanceof Error ? e.message : "Erro ao deletar.");
+    }
+  }
 
   if (loading) return <p className="text-gray-400">Carregando…</p>;
   if (usuarios.length === 0) return <p className="text-gray-500">Nenhum usuário cadastrado.</p>;
@@ -90,35 +117,133 @@ function UsuariosPanel() {
   };
 
   return (
-    <div className="card p-0 overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50 text-xs uppercase text-gray-500">
-          <tr>
-            <th className="text-left px-4 py-3">Nome</th>
-            <th className="text-left px-4 py-3">E-mail</th>
-            <th className="text-left px-4 py-3">Role</th>
-            <th className="text-left px-4 py-3">Escola</th>
-            <th className="text-left px-4 py-3">Criado em</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          {usuarios.map(u => (
-            <tr key={u.id} className="hover:bg-gray-50">
-              <td className="px-4 py-3 font-medium text-gray-900">{u.nome}</td>
-              <td className="px-4 py-3 text-gray-600">{u.email}</td>
-              <td className="px-4 py-3">
-                <span className={`text-xs px-2 py-0.5 rounded border font-medium ${roleBadge[u.role] ?? ""}`}>
-                  {ROLE_LABEL[u.role] ?? u.role}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-gray-600">{u.escola || "—"}</td>
-              <td className="px-4 py-3 text-gray-400 text-xs">
-                {u.criado_em ? String(u.criado_em).slice(0, 10) : "—"}
-              </td>
+    <>
+      <div className="card p-0 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+            <tr>
+              <th className="text-left px-4 py-3">Nome</th>
+              <th className="text-left px-4 py-3">E-mail</th>
+              <th className="text-left px-4 py-3">Role</th>
+              <th className="text-left px-4 py-3">Escola</th>
+              <th className="text-left px-4 py-3">Criado em</th>
+              <th className="text-right px-4 py-3 w-32">Ações</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {usuarios.map(u => {
+              const ehVoce = u.email === meId;
+              return (
+                <tr key={u.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-medium text-gray-900">
+                    {u.nome}
+                    {ehVoce && <span className="ml-2 text-xs text-blue-600 font-normal">(você)</span>}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">{u.email}</td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs px-2 py-0.5 rounded border font-medium ${roleBadge[u.role] ?? ""}`}>
+                      {ROLE_LABEL[u.role] ?? u.role}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">{u.escola || "—"}</td>
+                  <td className="px-4 py-3 text-gray-400 text-xs">
+                    {u.criado_em ? String(u.criado_em).slice(0, 10) : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex justify-end gap-1">
+                      <button
+                        onClick={() => setEditando(u)}
+                        className="text-blue-700 hover:text-blue-900 text-xs hover:underline"
+                      >
+                        Editar
+                      </button>
+                      <span className="text-gray-300">·</span>
+                      <button
+                        onClick={() => handleDelete(u)}
+                        disabled={ehVoce}
+                        className="text-red-600 hover:text-red-800 text-xs hover:underline disabled:opacity-30 disabled:cursor-not-allowed disabled:no-underline"
+                        title={ehVoce ? "Você não pode deletar sua própria conta" : "Apagar usuário"}
+                      >
+                        Apagar
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {editando && (
+        <EditarUsuarioModal
+          usuario={editando}
+          onClose={() => setEditando(null)}
+          onSaved={async () => { setEditando(null); await load(); }}
+        />
+      )}
+    </>
+  );
+}
+
+function EditarUsuarioModal({
+  usuario, onClose, onSaved,
+}: { usuario: UsuarioAdmin; onClose: () => void; onSaved: () => void }) {
+  const toast = useToast();
+  const [nome, setNome] = useState(usuario.nome);
+  const [role, setRole] = useState(usuario.role);
+  const [escola, setEscola] = useState(usuario.escola ?? "");
+  const [salvando, setSalvando] = useState(false);
+
+  async function salvar() {
+    if (!nome.trim()) { toast.err("Nome obrigatório."); return; }
+    setSalvando(true);
+    try {
+      await adminUpdateUsuario(usuario.id, {
+        nome: nome.trim(),
+        role,
+        escola: escola.trim(),
+      });
+      toast.ok("Usuário atualizado.");
+      onSaved();
+    } catch (e) {
+      toast.err(e instanceof Error ? e.message : "Erro ao atualizar.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-slide-in">
+        <h3 className="text-lg font-bold text-gray-900 mb-1">Editar usuário</h3>
+        <p className="text-xs text-gray-500 mb-4">{usuario.email}</p>
+
+        <div className="space-y-3">
+          <div>
+            <label className="label">Nome</label>
+            <input className="input" value={nome} onChange={e => setNome(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Perfil (role)</label>
+            <select className="input" value={role} onChange={e => setRole(e.target.value as UsuarioAdmin["role"])}>
+              <option value="professor">Professor</option>
+              <option value="admin_escolar">Admin Escolar</option>
+              <option value="admin_geral">Admin Geral</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Escola</label>
+            <input className="input" value={escola} onChange={e => setEscola(e.target.value)} placeholder="(opcional)" />
+          </div>
+        </div>
+
+        <div className="flex gap-2 mt-5">
+          <button onClick={onClose} className="flex-1 btn-secondary">Cancelar</button>
+          <button onClick={salvar} disabled={salvando} className="flex-1 btn-primary">
+            {salvando ? "Salvando…" : "Salvar"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -126,15 +251,63 @@ function UsuariosPanel() {
 // ──────────────────────────────────────────────────────────────────────────────
 
 function EscolasPanel() {
+  const toast = useToast();
   const [escolas, setEscolas] = useState<EscolaAgg[]>([]);
   const [loading, setLoading] = useState(true);
+  const [renomeando, setRenomeando] = useState<string | null>(null);
+  const [nomeNovo, setNomeNovo] = useState("");
+  const minhaEscola = (getUser()?.escola ?? "").trim();
 
-  useEffect(() => {
-    adminListEscolas()
-      .then(setEscolas)
-      .catch(() => setEscolas([]))
-      .finally(() => setLoading(false));
-  }, []);
+  async function load() {
+    setLoading(true);
+    try {
+      setEscolas(await adminListEscolas());
+    } catch {
+      setEscolas([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function handleRenomear(antigo: string) {
+    const novo = nomeNovo.trim();
+    if (!novo) { toast.err("Informe o nome novo."); return; }
+    if (novo === antigo) { setRenomeando(null); return; }
+    try {
+      const r = await adminRenameEscola(antigo, novo);
+      toast.ok(`Escola renomeada. ${r.usuarios_atualizados} usuário(s) e ${r.turmas_atualizadas} turma(s) atualizadas.`);
+      setRenomeando(null); setNomeNovo("");
+      await load();
+    } catch (e) {
+      toast.err(e instanceof Error ? e.message : "Erro ao renomear.");
+    }
+  }
+
+  async function handleDelete(e: EscolaAgg) {
+    if (e.escola === minhaEscola) {
+      toast.err("Você não pode apagar a escola onde sua conta está vinculada.");
+      return;
+    }
+    const msg = `APAGAR a escola "${e.escola}"?\n\nIsso vai DELETAR:\n• ${e.usuarios} usuário(s)\n• ${e.turmas} turma(s) (com todos os alunos, provas e respostas vinculadas)\n\nEsta ação não pode ser desfeita. Confirma?`;
+    if (!confirm(msg)) return;
+    // Confirmação dupla pra deletar escola com dados
+    if (e.usuarios + e.turmas > 0) {
+      const texto = prompt(`Para confirmar, digite o nome da escola: ${e.escola}`);
+      if (!texto || texto.trim() !== e.escola) {
+        toast.warn("Confirmação não confere. Operação cancelada.");
+        return;
+      }
+    }
+    try {
+      const r = await adminDeleteEscola(e.escola);
+      toast.ok(`Escola "${e.escola}" removida. ${r.usuarios_deletados} usuário(s) e ${r.turmas_deletadas} turma(s) apagadas.`);
+      await load();
+    } catch (err) {
+      toast.err(err instanceof Error ? err.message : "Erro ao deletar.");
+    }
+  }
 
   if (loading) return <p className="text-gray-400">Carregando…</p>;
   if (escolas.length === 0) {
@@ -154,16 +327,75 @@ function EscolasPanel() {
             <th className="text-left px-4 py-3">Escola</th>
             <th className="text-right px-4 py-3">Usuários</th>
             <th className="text-right px-4 py-3">Turmas</th>
+            <th className="text-right px-4 py-3 w-40">Ações</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
-          {escolas.map(e => (
-            <tr key={e.escola} className="hover:bg-gray-50">
-              <td className="px-4 py-3 font-medium text-gray-900">🏫 {e.escola}</td>
-              <td className="px-4 py-3 text-right tabular-nums">{e.usuarios}</td>
-              <td className="px-4 py-3 text-right tabular-nums">{e.turmas}</td>
-            </tr>
-          ))}
+          {escolas.map(e => {
+            const ehMinha = e.escola === minhaEscola;
+            const editando = renomeando === e.escola;
+            return (
+              <tr key={e.escola} className="hover:bg-gray-50">
+                <td className="px-4 py-3 font-medium text-gray-900">
+                  {editando ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        className="input text-sm py-1.5 flex-1"
+                        value={nomeNovo}
+                        onChange={ev => setNomeNovo(ev.target.value)}
+                        placeholder="Novo nome"
+                        autoFocus
+                        onKeyDown={ev => {
+                          if (ev.key === "Enter") handleRenomear(e.escola);
+                          if (ev.key === "Escape") { setRenomeando(null); setNomeNovo(""); }
+                        }}
+                      />
+                      <button
+                        onClick={() => handleRenomear(e.escola)}
+                        className="text-green-600 hover:text-green-800 text-xs font-medium"
+                      >
+                        Salvar
+                      </button>
+                      <button
+                        onClick={() => { setRenomeando(null); setNomeNovo(""); }}
+                        className="text-gray-500 hover:text-gray-700 text-xs"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      🏫 {e.escola}
+                      {ehMinha && <span className="ml-2 text-xs text-blue-600 font-normal">(sua conta)</span>}
+                    </>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums">{e.usuarios}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{e.turmas}</td>
+                <td className="px-4 py-3 text-right">
+                  {!editando && (
+                    <div className="flex justify-end gap-1">
+                      <button
+                        onClick={() => { setRenomeando(e.escola); setNomeNovo(e.escola); }}
+                        className="text-blue-700 hover:text-blue-900 text-xs hover:underline"
+                      >
+                        Renomear
+                      </button>
+                      <span className="text-gray-300">·</span>
+                      <button
+                        onClick={() => handleDelete(e)}
+                        disabled={ehMinha}
+                        className="text-red-600 hover:text-red-800 text-xs hover:underline disabled:opacity-30 disabled:cursor-not-allowed disabled:no-underline"
+                        title={ehMinha ? "Você não pode apagar a sua própria escola" : "Apaga escola e todos os dados vinculados"}
+                      >
+                        Apagar
+                      </button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
