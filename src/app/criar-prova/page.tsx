@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, ArrowLeft, CheckCircle2, Send } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, CheckCircle2, Send, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import {
   getTurmas, criarProvaManual, getProvaEdicao,
   addQuestaoManual, updateQuestaoManual, deleteQuestao, publicarProva,
@@ -38,8 +38,9 @@ export default function CriarProvaPage() {
   const [qTipo, setQTipo] = useState<TipoQ>("multipla_escolha");
   const [qAlternativas, setQAlternativas] = useState<string[]>(["", "", "", ""]);
   const [qGabarito, setQGabarito] = useState("A");
-  const [qBloom, setQBloom] = useState<number>(0);
+  const [qBloom, setQBloom] = useState<number>(0); // override manual; 0 = deixar IA decidir
   const [savingQ, setSavingQ] = useState(false);
+  const [showAvancado, setShowAvancado] = useState(false);
 
   // Publicar
   const [pin, setPin] = useState<string | null>(null);
@@ -57,6 +58,7 @@ export default function CriarProvaPage() {
     setQAlternativas(["", "", "", ""]);
     setQGabarito("A");
     setQBloom(0);
+    setShowAvancado(false);
   }
 
   async function salvarMetadados() {
@@ -112,18 +114,26 @@ export default function CriarProvaPage() {
 
     setSavingQ(true);
     try {
+      let auto: { area_display?: string; bloom_nome?: string; taxonomia_label?: string } = {};
       if (editingId) {
-        await updateQuestaoManual(provaId, editingId, {
+        const r = await updateQuestaoManual(provaId, editingId, {
           stem: qStem.trim(), alternativas: alts, gabarito: qGabarito.toUpperCase(),
           tipo: qTipo, bloom_nivel: qBloom, bloom_nome: bloomNome,
         });
+        auto = (r as { classificacao_automatica?: typeof auto }).classificacao_automatica || {};
         toast.ok("Questão atualizada.");
       } else {
-        await addQuestaoManual(provaId, {
+        const r = await addQuestaoManual(provaId, {
           stem: qStem.trim(), alternativas: alts, gabarito: qGabarito.toUpperCase(),
           tipo: qTipo, bloom_nivel: qBloom, bloom_nome: bloomNome,
         });
-        toast.ok("Questão adicionada.");
+        auto = (r as { classificacao_automatica?: typeof auto }).classificacao_automatica || {};
+        const partes = [
+          auto.bloom_nome && `Bloom: ${auto.bloom_nome}`,
+          auto.area_display && `Área: ${auto.area_display}`,
+          auto.taxonomia_label && `Tópico: ${auto.taxonomia_label}`,
+        ].filter(Boolean).join(" · ");
+        toast.ok(partes ? `Adicionada! ${partes}` : "Questão adicionada.");
       }
       const data = await getProvaEdicao(provaId);
       setQuestoes(data.questoes);
@@ -286,18 +296,33 @@ export default function CriarProvaPage() {
                     </span>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm text-gray-900 line-clamp-2">{q.stem}</div>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                        <span>{q.tipo === "verdadeiro_falso" ? "V/F" : `${q.alternativas.length} alt.`}</span>
-                        <span>·</span>
-                        <span>Gabarito: <strong>{q.gabarito}</strong></span>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5 text-xs">
+                        <span className="text-gray-500">
+                          {q.tipo === "verdadeiro_falso" ? "V/F" : `${q.alternativas.length} alt.`}
+                        </span>
+                        <span className="text-gray-300">·</span>
+                        <span className="text-gray-500">Gabarito <strong className="text-gray-800">{q.gabarito}</strong></span>
+
                         {q.bloom_nivel > 0 && (
-                          <>
-                            <span>·</span>
-                            <span className="px-1.5 py-0.5 rounded text-white text-xs"
-                              style={{ background: BLOOM_COLORS[q.bloom_nivel] }}>
-                              {BLOOM_NAMES[q.bloom_nivel]}
-                            </span>
-                          </>
+                          <span className="px-1.5 py-0.5 rounded text-white"
+                            style={{ background: BLOOM_COLORS[q.bloom_nivel] }}
+                            title={`Nível ${q.bloom_nivel} de Bloom`}>
+                            {BLOOM_NAMES[q.bloom_nivel]}
+                          </span>
+                        )}
+                        {q.area_display && (
+                          <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100">
+                            {q.area_display}
+                          </span>
+                        )}
+                        {q.taxonomia_codigo && (
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 font-mono text-[10px]"
+                            title="Nó da taxonomia">
+                            {q.taxonomia_codigo}
+                          </span>
+                        )}
+                        {!q.bloom_nivel && !q.area_display && !q.taxonomia_codigo && (
+                          <span className="text-amber-600 italic">sem classificação</span>
                         )}
                       </div>
                     </div>
@@ -320,6 +345,14 @@ export default function CriarProvaPage() {
                 {editingId ? "Editar questão" : "Nova questão"}
               </h3>
 
+              <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 mb-3 text-xs text-blue-800 flex items-start gap-2">
+                <Sparkles size={14} className="mt-0.5 flex-shrink-0" />
+                <div>
+                  <strong>Classificação automática:</strong> ao salvar, o sistema vai sugerir o nível Bloom,
+                  a área e o nó da taxonomia desta questão com base no enunciado. Você pode revisar e ajustar depois.
+                </div>
+              </div>
+
               <div className="space-y-3">
                 <div>
                   <label className="label">Enunciado</label>
@@ -328,23 +361,12 @@ export default function CriarProvaPage() {
                     value={qStem} onChange={e => setQStem(e.target.value)} />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="label">Tipo</label>
-                    <select className="input" value={qTipo} onChange={e => setQTipo(e.target.value as TipoQ)}>
-                      <option value="multipla_escolha">Múltipla escolha</option>
-                      <option value="verdadeiro_falso">Verdadeiro ou Falso</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="label">Nível Bloom (opcional)</label>
-                    <select className="input" value={qBloom} onChange={e => setQBloom(Number(e.target.value))}>
-                      <option value={0}>— sem classificação —</option>
-                      {[1, 2, 3, 4, 5, 6].map(n => (
-                        <option key={n} value={n}>{n} - {BLOOM_NAMES[n]}</option>
-                      ))}
-                    </select>
-                  </div>
+                <div>
+                  <label className="label">Tipo</label>
+                  <select className="input max-w-xs" value={qTipo} onChange={e => setQTipo(e.target.value as TipoQ)}>
+                    <option value="multipla_escolha">Múltipla escolha</option>
+                    <option value="verdadeiro_falso">Verdadeiro ou Falso</option>
+                  </select>
                 </div>
 
                 {qTipo === "multipla_escolha" ? (
@@ -407,10 +429,29 @@ export default function CriarProvaPage() {
                   </div>
                 )}
 
+                <div>
+                  <button type="button" onClick={() => setShowAvancado(!showAvancado)}
+                    className="text-xs text-blue-700 hover:underline flex items-center gap-1">
+                    {showAvancado ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    Avançado: forçar nível Bloom manualmente
+                  </button>
+                  {showAvancado && (
+                    <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <label className="label text-xs">Nível Bloom (deixe em "automático" para o sistema decidir)</label>
+                      <select className="input" value={qBloom} onChange={e => setQBloom(Number(e.target.value))}>
+                        <option value={0}>Automático (recomendado)</option>
+                        {[1, 2, 3, 4, 5, 6].map(n => (
+                          <option key={n} value={n}>{n} - {BLOOM_NAMES[n]}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex gap-2 pt-2">
                   <button onClick={resetForm} className="btn-secondary">Cancelar</button>
                   <button onClick={salvarQuestao} disabled={savingQ} className="btn-primary">
-                    {savingQ ? "Salvando…" : editingId ? "Salvar alterações" : "Adicionar questão"}
+                    {savingQ ? "Classificando…" : editingId ? "Salvar alterações" : "Adicionar questão"}
                   </button>
                 </div>
               </div>

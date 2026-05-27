@@ -50,6 +50,10 @@ export interface QuestaoEdicao {
   bloom_nome: string;
   bloom_verbo?: string;
   taxonomia_codigo?: string;
+  area_key?: string;
+  area_display?: string;
+  subarea_key?: string;
+  subarea_label?: string;
 }
 
 export interface ProvaEdicaoResp {
