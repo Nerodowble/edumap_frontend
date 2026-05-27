@@ -12,6 +12,7 @@ import {
   adminListEtapas, downloadTaxonomiaTemplate, downloadTaxonomiaExport,
   adminReclassificarPreview, adminReclassificar,
   type ReclassificarPreview, type ReclassificarResp,
+  type EtapaInfo,
 } from "@/lib/api";
 import type {
   UsuarioAdmin, EscolaAgg, TaxonomiaStats, TaxonomiaNoFlat,
@@ -290,15 +291,18 @@ function ProvasPanel() {
 
 // ──────────────────────────────────────────────────────────────────────────────
 
-const ETAPA_LABELS: Record<string, string> = {
-  ef1: "Ensino Fundamental I",
-  ef2: "Ensino Fundamental II",
-  em: "Ensino Médio",
-  superior: "Ensino Superior",
+// Label legivel dos AGRUPADORES de etapa (basica/superior/tecnico).
+// O label da etapa individual vem do backend (etapa_label), entao nao precisa
+// hardcoded aqui. Se o backend trouxer um grupo novo (ex: "extensao"), aparece
+// com o slug bruto na UI ate adicionarmos um nome amigavel.
+const GRUPO_LABELS_FALLBACK: Record<string, string> = {
+  basica: "Educação básica",
+  superior: "Ensino superior",
+  tecnico: "Cursos técnicos",
 };
 
 function TaxonomiaPanel() {
-  const [etapas, setEtapas] = useState<Array<{ etapa: string; total_nos: number; total_materias: number }>>([]);
+  const [etapas, setEtapas] = useState<EtapaInfo[]>([]);
   const [etapa, setEtapa] = useState<string>("ef2");
   const [stats, setStats] = useState<TaxonomiaStats | null>(null);
   const [materia, setMateria] = useState<string>("");
@@ -422,27 +426,59 @@ function TaxonomiaPanel() {
         </div>
       )}
 
-      {/* Seletor de etapa */}
+      {/* Seletor de etapa - botoes agrupados por grupo (basica/superior/tecnico) */}
       <div className="card">
-        <div className="flex items-center gap-3 flex-wrap">
-          <label className="label mb-0">Etapa educacional:</label>
-          <select
-            className="input max-w-xs"
-            value={etapa}
-            onChange={e => setEtapa(e.target.value)}
-            disabled={etapas.length === 0}
-          >
-            {etapas.length === 0 && <option value="ef2">Ensino Fundamental II</option>}
-            {etapas.map(e => (
-              <option key={e.etapa} value={e.etapa}>
-                {ETAPA_LABELS[e.etapa] ?? e.etapa} — {e.total_nos} nós, {e.total_materias} matéria(s)
-              </option>
-            ))}
-          </select>
-          <span className="text-xs text-gray-400 ml-auto">
-            Código: <code className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{etapa}</code>
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <h3 className="font-semibold text-gray-900">Etapa educacional</h3>
+          <span className="text-xs text-gray-400">
+            Selecionada: <code className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{etapa}</code>
           </span>
         </div>
+
+        {etapas.length === 0 ? (
+          <p className="text-sm text-gray-500">Nenhuma etapa cadastrada.</p>
+        ) : (
+          <div className="space-y-3">
+            {/* Agrupa por etapa_grupo, na ordem que veio do backend */}
+            {(() => {
+              const grupos: Record<string, EtapaInfo[]> = {};
+              const ordemGrupos: string[] = [];
+              for (const e of etapas) {
+                const g = e.etapa_grupo || "outros";
+                if (!(g in grupos)) { grupos[g] = []; ordemGrupos.push(g); }
+                grupos[g].push(e);
+              }
+              return ordemGrupos.map(g => (
+                <div key={g}>
+                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                    {GRUPO_LABELS_FALLBACK[g] ?? g}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {grupos[g].map(e => {
+                      const ativo = e.etapa === etapa;
+                      return (
+                        <button
+                          key={e.etapa}
+                          onClick={() => setEtapa(e.etapa)}
+                          className={`px-3 py-2 rounded-lg border text-left transition-all ${
+                            ativo
+                              ? "bg-blue-700 text-white border-blue-700 shadow-sm"
+                              : "bg-white text-gray-700 border-gray-300 hover:border-blue-400 hover:bg-blue-50"
+                          }`}
+                        >
+                          <div className="text-sm font-medium">{e.etapa_label}</div>
+                          <div className={`text-[11px] ${ativo ? "text-blue-100" : "text-gray-500"}`}>
+                            {e.total_nos} nós · {e.total_materias} matéria{e.total_materias !== 1 ? "s" : ""}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
+        )}
       </div>
 
       {/* Stats */}
@@ -450,7 +486,9 @@ function TaxonomiaPanel() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="card text-center">
             <div className="text-2xl font-bold text-gray-900">{stats.total_nos}</div>
-            <div className="text-xs text-gray-500 mt-1">tópicos cadastrados ({ETAPA_LABELS[stats.etapa] ?? stats.etapa})</div>
+            <div className="text-xs text-gray-500 mt-1">
+              tópicos cadastrados ({etapas.find(e => e.etapa === stats.etapa)?.etapa_label ?? stats.etapa})
+            </div>
           </div>
           <div className="card text-center">
             <div className="text-2xl font-bold text-gray-900">{stats.por_materia.length}</div>

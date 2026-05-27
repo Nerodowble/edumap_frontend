@@ -185,8 +185,17 @@ export const adminListUsuarios = () =>
 export const adminListEscolas = () =>
   req<EscolaAgg[]>("/admin/escolas");
 
+export interface EtapaInfo {
+  etapa: string;
+  total_nos: number;
+  total_materias: number;
+  etapa_label: string;
+  etapa_grupo: string;
+  etapa_ordem?: number;
+}
+
 export const adminListEtapas = () =>
-  req<Array<{ etapa: string; total_nos: number; total_materias: number }>>("/admin/taxonomia/etapas");
+  req<EtapaInfo[]>("/admin/taxonomia/etapas");
 
 export const adminGetTaxonomiaStats = (etapa = "ef2") =>
   req<TaxonomiaStats>(`/admin/taxonomia/stats?etapa=${etapa}`);
