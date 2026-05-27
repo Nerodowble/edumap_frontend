@@ -426,60 +426,6 @@ function TaxonomiaPanel() {
         </div>
       )}
 
-      {/* Seletor de etapa - botoes agrupados por grupo (basica/superior/tecnico) */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <h3 className="font-semibold text-gray-900">Etapa educacional</h3>
-          <span className="text-xs text-gray-400">
-            Selecionada: <code className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{etapa}</code>
-          </span>
-        </div>
-
-        {etapas.length === 0 ? (
-          <p className="text-sm text-gray-500">Nenhuma etapa cadastrada.</p>
-        ) : (
-          <div className="space-y-3">
-            {/* Agrupa por etapa_grupo, na ordem que veio do backend */}
-            {(() => {
-              const grupos: Record<string, EtapaInfo[]> = {};
-              const ordemGrupos: string[] = [];
-              for (const e of etapas) {
-                const g = e.etapa_grupo || "outros";
-                if (!(g in grupos)) { grupos[g] = []; ordemGrupos.push(g); }
-                grupos[g].push(e);
-              }
-              return ordemGrupos.map(g => (
-                <div key={g}>
-                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                    {GRUPO_LABELS_FALLBACK[g] ?? g}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {grupos[g].map(e => {
-                      const ativo = e.etapa === etapa;
-                      return (
-                        <button
-                          key={e.etapa}
-                          onClick={() => setEtapa(e.etapa)}
-                          className={`px-3 py-2 rounded-lg border text-left transition-all ${
-                            ativo
-                              ? "bg-blue-700 text-white border-blue-700 shadow-sm"
-                              : "bg-white text-gray-700 border-gray-300 hover:border-blue-400 hover:bg-blue-50"
-                          }`}
-                        >
-                          <div className="text-sm font-medium">{e.etapa_label}</div>
-                          <div className={`text-[11px] ${ativo ? "text-blue-100" : "text-gray-500"}`}>
-                            {e.total_nos} nós · {e.total_materias} matéria{e.total_materias !== 1 ? "s" : ""}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ));
-            })()}
-          </div>
-        )}
-      </div>
 
       {/* Stats */}
       {stats && (
@@ -543,40 +489,104 @@ function TaxonomiaPanel() {
       {/* Reprocessar taxonomia das provas existentes */}
       <ReprocessarTaxonomiaCard flash={flash} />
 
-      {/* Selector de matéria */}
+      {/* Navegar pela taxonomia — Etapa + Matéria juntas */}
       <div className="card">
-        <div className="flex items-center gap-3 mb-3 flex-wrap">
-          <label className="label mb-0">Matéria:</label>
+        <h3 className="font-semibold text-gray-900 mb-3">🔎 Navegar pela taxonomia</h3>
+
+        {/* 1) Escolha a etapa */}
+        <div className="mb-4">
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            1. Escolha a etapa
+          </div>
+          {etapas.length === 0 ? (
+            <p className="text-sm text-gray-500">Nenhuma etapa cadastrada.</p>
+          ) : (
+            <div className="space-y-3">
+              {(() => {
+                const grupos: Record<string, EtapaInfo[]> = {};
+                const ordemGrupos: string[] = [];
+                for (const e of etapas) {
+                  const g = e.etapa_grupo || "outros";
+                  if (!(g in grupos)) { grupos[g] = []; ordemGrupos.push(g); }
+                  grupos[g].push(e);
+                }
+                return ordemGrupos.map(g => (
+                  <div key={g}>
+                    <div className="text-[11px] font-medium text-gray-400 uppercase mb-1">
+                      {GRUPO_LABELS_FALLBACK[g] ?? g}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {grupos[g].map(e => {
+                        const ativo = e.etapa === etapa;
+                        return (
+                          <button
+                            key={e.etapa}
+                            onClick={() => setEtapa(e.etapa)}
+                            className={`px-3 py-2 rounded-lg border text-left transition-all ${
+                              ativo
+                                ? "bg-blue-700 text-white border-blue-700 shadow-sm"
+                                : "bg-white text-gray-700 border-gray-300 hover:border-blue-400 hover:bg-blue-50"
+                            }`}
+                          >
+                            <div className="text-sm font-medium">{e.etapa_label}</div>
+                            <div className={`text-[11px] ${ativo ? "text-blue-100" : "text-gray-500"}`}>
+                              {e.total_nos} nós · {e.total_materias} matéria{e.total_materias !== 1 ? "s" : ""}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          )}
+        </div>
+
+        {/* 2) Escolha a matéria dentro da etapa */}
+        <div className="border-t border-gray-100 pt-4">
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            2. Escolha a matéria dentro de {etapas.find(e => e.etapa === etapa)?.etapa_label ?? etapa}
+          </div>
           <select
-            className="input max-w-xs"
+            className="input max-w-md"
             value={materia}
             onChange={e => setMateria(e.target.value)}
             disabled={!stats || stats.por_materia.length === 0}
           >
             {stats?.por_materia.length === 0 && <option value="">(nenhuma matéria nesta etapa)</option>}
             {stats?.por_materia.map(m => (
-              <option key={m.materia} value={m.materia}>{m.materia} ({m.total})</option>
+              <option key={m.materia} value={m.materia}>{m.materia} ({m.total} nós)</option>
             ))}
           </select>
+          {stats && stats.por_materia.length > 0 && (
+            <p className="text-xs text-gray-500 mt-1.5">
+              {stats.por_materia.length} matéria{stats.por_materia.length !== 1 ? "s" : ""} disponíve{stats.por_materia.length !== 1 ? "is" : "l"} nesta etapa.
+            </p>
+          )}
         </div>
-        {loading && <p className="text-gray-400 text-sm">Carregando…</p>}
-        {!loading && tree.length === 0 && (
-          <p className="text-gray-400 text-sm">Nenhum nó para esta matéria.</p>
-        )}
-        {!loading && tree.length > 0 && (
-          <div className="border border-gray-100 rounded-lg divide-y divide-gray-50">
-            {tree.map(root => (
-              <NoTreeRow
-                key={root.id}
-                no={root}
-                depth={0}
-                defaultOpen={true}
-                onChange={reloadNos}
-                flash={flash}
-              />
-            ))}
-          </div>
-        )}
+
+        {/* 3) Árvore da matéria escolhida */}
+        <div className="border-t border-gray-100 pt-4 mt-4">
+          {loading && <p className="text-gray-400 text-sm">Carregando…</p>}
+          {!loading && tree.length === 0 && (
+            <p className="text-gray-400 text-sm">Nenhum nó para esta matéria.</p>
+          )}
+          {!loading && tree.length > 0 && (
+            <div className="border border-gray-100 rounded-lg divide-y divide-gray-50">
+              {tree.map(root => (
+                <NoTreeRow
+                  key={root.id}
+                  no={root}
+                  depth={0}
+                  defaultOpen={true}
+                  onChange={reloadNos}
+                  flash={flash}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
