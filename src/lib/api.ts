@@ -444,3 +444,38 @@ export const alunoResponder = (
 
 export const alunoFinalizar = (provaId: number) =>
   reqAluno<{ ok: boolean }>(`/aluno/provas/${provaId}/finalizar`, { method: "POST" });
+
+// ── Admin: reclassificacao de taxonomia ──────────────────────────────────────
+export interface ReclassificarPreview {
+  total_questoes: number;
+  total_provas: number;
+  disciplinas_disponiveis: string[];
+}
+
+export interface ReclassificarMudanca {
+  prova_id: number;
+  prova_titulo: string;
+  numero: number;
+  antes: { taxonomia: string; bloom: number; area: string };
+  depois: { taxonomia: string; bloom: number; area: string };
+}
+
+export interface ReclassificarResp {
+  ok: boolean;
+  atualizadas: number;
+  mantidas: number;
+  total_processadas: number;
+  mudancas: ReclassificarMudanca[];
+}
+
+export const adminReclassificarPreview = (disciplina?: string) => {
+  const q = disciplina ? `?disciplina=${encodeURIComponent(disciplina)}` : "";
+  return req<ReclassificarPreview>(`/admin/taxonomia/reclassificar/preview${q}`);
+};
+
+export const adminReclassificar = (data: { disciplina?: string; prova_ids?: number[] } = {}) =>
+  req<ReclassificarResp>("/admin/taxonomia/reclassificar", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });

@@ -10,6 +10,8 @@ import {
   adminAtualizarNo, adminCriarNo, adminDeletarNo,
   adminListProvas, adminDeleteProva,
   adminListEtapas, downloadTaxonomiaTemplate, downloadTaxonomiaExport,
+  adminReclassificarPreview, adminReclassificar,
+  type ReclassificarPreview, type ReclassificarResp,
 } from "@/lib/api";
 import type {
   UsuarioAdmin, EscolaAgg, TaxonomiaStats, TaxonomiaNoFlat,
@@ -500,6 +502,9 @@ function TaxonomiaPanel() {
         </div>
       </div>
 
+      {/* Reprocessar taxonomia das provas existentes */}
+      <ReprocessarTaxonomiaCard flash={flash} />
+
       {/* Selector de matéria */}
       <div className="card">
         <div className="flex items-center gap-3 mb-3 flex-wrap">
@@ -773,6 +778,164 @@ function NoTreeRow({ no, depth, defaultOpen, onChange, flash }: RowProps) {
               flash={flash}
             />
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Reprocessar taxonomia de provas existentes
+// ──────────────────────────────────────────────────────────────────────────────
+
+interface ReprocessarProps {
+  flash: (type: "ok" | "err", text: string) => void;
+}
+
+function ReprocessarTaxonomiaCard({ flash }: ReprocessarProps) {
+  const [preview, setPreview] = useState<ReclassificarPreview | null>(null);
+  const [disciplina, setDisciplina] = useState<string>("");
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [executando, setExecutando] = useState(false);
+  const [resultado, setResultado] = useState<ReclassificarResp | null>(null);
+  const [confirmar, setConfirmar] = useState(false);
+
+  async function carregarPreview(disc?: string) {
+    setLoadingPreview(true);
+    try {
+      const p = await adminReclassificarPreview(disc || undefined);
+      setPreview(p);
+    } catch (e) {
+      flash("err", e instanceof Error ? e.message : "Erro ao carregar preview.");
+    } finally {
+      setLoadingPreview(false);
+    }
+  }
+
+  useEffect(() => { carregarPreview(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { carregarPreview(disciplina); /* eslint-disable-next-line */ }, [disciplina]);
+
+  async function executar() {
+    setExecutando(true);
+    setResultado(null);
+    setConfirmar(false);
+    try {
+      const r = await adminReclassificar({ disciplina: disciplina || undefined });
+      setResultado(r);
+      flash("ok", `Reprocessamento concluído: ${r.atualizadas} atualizadas, ${r.mantidas} mantidas.`);
+    } catch (e) {
+      flash("err", e instanceof Error ? e.message : "Erro ao reprocessar.");
+    } finally {
+      setExecutando(false);
+    }
+  }
+
+  return (
+    <div className="card">
+      <h3 className="font-semibold text-gray-900 mb-1">🔁 Reprocessar taxonomia das provas existentes</h3>
+      <p className="text-xs text-gray-500 mb-4">
+        Re-aplica o classificador atual (Bloom + área + nó da taxonomia) sobre todas as questões de provas
+        criadas manualmente. Útil depois de melhorar palavras-chave ou ajustar a base curricular.
+        Não altera enunciados, alternativas, gabaritos ou respostas dos alunos.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+        <div>
+          <label className="label">Filtrar por disciplina (opcional)</label>
+          <select
+            className="input"
+            value={disciplina}
+            onChange={e => setDisciplina(e.target.value)}
+            disabled={loadingPreview || executando}
+          >
+            <option value="">Todas as disciplinas</option>
+            {preview?.disciplinas_disponiveis.map(d => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+        </div>
+        <div className="card bg-blue-50 border border-blue-200 sm:col-span-2 flex items-center gap-4 p-3">
+          <div className="flex-1">
+            <div className="text-xs text-blue-700">Serão processadas</div>
+            <div className="text-2xl font-bold text-blue-900">
+              {loadingPreview ? "…" : `${preview?.total_questoes ?? 0} questões`}
+            </div>
+            <div className="text-xs text-blue-700">
+              em {preview?.total_provas ?? 0} prova{(preview?.total_provas ?? 0) !== 1 ? "s" : ""}
+              {disciplina ? ` de "${disciplina}"` : ""}
+            </div>
+          </div>
+          <button
+            onClick={() => setConfirmar(true)}
+            disabled={executando || !preview || preview.total_questoes === 0}
+            className="bg-blue-700 hover:bg-blue-800 text-white font-semibold px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {executando ? "Reprocessando…" : "Executar"}
+          </button>
+        </div>
+      </div>
+
+      {/* Resultado */}
+      {resultado && (
+        <div className="border border-emerald-200 bg-emerald-50 rounded-lg p-3 mt-2">
+          <div className="font-medium text-emerald-900 mb-1">
+            ✓ Reprocessamento concluído
+          </div>
+          <div className="text-sm text-emerald-800">
+            {resultado.atualizadas} atualizada{resultado.atualizadas !== 1 ? "s" : ""},{" "}
+            {resultado.mantidas} mantida{resultado.mantidas !== 1 ? "s" : ""} (sem mudança),
+            de {resultado.total_processadas} processadas.
+          </div>
+          {resultado.mudancas.length > 0 && (
+            <details className="mt-2">
+              <summary className="cursor-pointer text-xs text-emerald-800 hover:underline">
+                Ver {resultado.mudancas.length} primeira{resultado.mudancas.length !== 1 ? "s" : ""} mudança{resultado.mudancas.length !== 1 ? "s" : ""}
+              </summary>
+              <div className="mt-2 space-y-1 max-h-64 overflow-y-auto pr-2">
+                {resultado.mudancas.map((m, i) => (
+                  <div key={i} className="text-xs bg-white rounded border border-emerald-200 p-2">
+                    <div className="font-medium text-gray-700 mb-1">
+                      [{m.prova_titulo || `Prova ${m.prova_id}`}] · Questão {m.numero}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 font-mono text-[10px]">
+                      <div className="text-red-700">
+                        antes: {m.antes.taxonomia || "(vazia)"} · Bloom {m.antes.bloom}
+                      </div>
+                      <div className="text-emerald-700">
+                        depois: {m.depois.taxonomia || "(vazia)"} · Bloom {m.depois.bloom}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
+
+      {/* Modal de confirmação */}
+      {confirmar && preview && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 animate-slide-in">
+            <h3 className="text-lg font-bold text-gray-900 mb-1">Reprocessar agora?</h3>
+            <p className="text-sm text-gray-600 mb-3">
+              Vamos rodar o classificador em <strong>{preview.total_questoes} questões</strong> de{" "}
+              <strong>{preview.total_provas} prova{preview.total_provas !== 1 ? "s" : ""}</strong>
+              {disciplina ? <> da disciplina <strong>{disciplina}</strong></> : ""}.
+            </p>
+            <p className="text-xs text-gray-500 mb-4">
+              Os campos Bloom, área e nó da taxonomia podem mudar. Respostas dos alunos
+              não são afetadas.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmar(false)} className="flex-1 btn-secondary">
+                Cancelar
+              </button>
+              <button onClick={executar} className="flex-1 btn-primary" disabled={executando}>
+                {executando ? "Reprocessando…" : "Sim, reprocessar"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
