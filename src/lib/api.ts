@@ -5,7 +5,7 @@ import type {
   UsuarioAdmin, EscolaAgg, TaxonomiaNoFlat, TaxonomiaStats,
   ProvaAdmin, ProvaEdicaoResp, MonitorProvaResp,
   AlunoSessao, ProvaEmAberto, ProvaAlunoResp,
-  TurmaContexto, Convite, ConviteValidacao,
+  TurmaContexto, Convite, ConviteValidacao, ProvaOnline,
 } from "./types";
 import { getToken, removeToken } from "./auth";
 import { getAlunoToken, removeAlunoToken } from "./alunoAuth";
@@ -155,6 +155,8 @@ export const deleteAluno = (alunoId: number) =>
   req<void>(`/alunos/${alunoId}`, { method: "DELETE" });
 
 // ── Provas ────────────────────────────────────────────────────────────────────
+export const getProvasOnline = () => req<ProvaOnline[]>("/provas/online");
+
 export const getProvas = (turmaId: number) =>
   req<Prova[]>(`/turmas/${turmaId}/provas`);
 

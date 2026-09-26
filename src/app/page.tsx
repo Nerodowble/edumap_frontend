@@ -3,51 +3,50 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
-  Users, Upload, ClipboardList, BarChart2, Pencil, ArrowRight,
+  Users, Upload, ClipboardList, BarChart2, Pencil, ArrowRight, PlusCircle, Smartphone,
   type LucideIcon,
 } from "lucide-react";
 import { getTurmas } from "@/lib/api";
 import { getUser } from "@/lib/auth";
 import type { Turma } from "@/lib/types";
 
-interface QuickItem {
+interface Passo {
   href: string;
   Icon: LucideIcon;
   label: string;
   desc: string;
-  bg: string;
-  border: string;
-  text: string;
 }
 
-const QUICK: QuickItem[] = [
+interface Caminho {
+  titulo: string;
+  resumo: string;
+  cor: { bg: string; border: string; text: string };
+  passos: Passo[];
+}
+
+// Os dois jeitos de usar o EduMap. Ambos começam pela turma e terminam no relatório.
+const CAMINHOS: Caminho[] = [
   {
-    href: "/turmas",
-    Icon: Users,
-    label: "1. Turmas e Alunos",
-    desc: "Cadastre suas turmas e os alunos de cada uma.",
-    bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700",
+    titulo: "Prova online",
+    resumo: "Os alunos respondem no celular. A correção é automática.",
+    cor: { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-800" },
+    passos: [
+      { href: "/turmas",      Icon: Users,      label: "Cadastre a turma", desc: "Turma e alunos com R.A." },
+      { href: "/criar-prova", Icon: PlusCircle, label: "Crie a prova",     desc: "Questão por questão, com gabarito." },
+      { href: "/provas",      Icon: Smartphone, label: "Aplique com PIN",  desc: "Acompanhe quem já entrou e terminou." },
+      { href: "/relatorio",   Icon: BarChart2,  label: "Veja o relatório", desc: "Onde cada aluno tem dificuldade." },
+    ],
   },
   {
-    href: "/analisar",
-    Icon: Upload,
-    label: "2. Analisar Prova",
-    desc: "Envie a foto ou PDF da prova. O sistema lê e classifica as questões automaticamente.",
-    bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-700",
-  },
-  {
-    href: "/lancar",
-    Icon: ClipboardList,
-    label: "3. Lançamento",
-    desc: "Registre o que cada aluno respondeu e calcule o desempenho.",
-    bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700",
-  },
-  {
-    href: "/relatorio",
-    Icon: BarChart2,
-    label: "4. Relatório",
-    desc: "Diagnóstico completo da turma e de cada aluno individualmente.",
-    bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700",
+    titulo: "Prova impressa",
+    resumo: "Envie a foto ou o PDF da prova em papel e lance as respostas.",
+    cor: { bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-800" },
+    passos: [
+      { href: "/turmas",    Icon: Users,         label: "Cadastre a turma",  desc: "Turma e alunos." },
+      { href: "/analisar",  Icon: Upload,        label: "Envie a prova",     desc: "O sistema lê e classifica as questões." },
+      { href: "/lancar",    Icon: ClipboardList, label: "Lance as respostas", desc: "O que cada aluno marcou." },
+      { href: "/relatorio", Icon: BarChart2,     label: "Veja o relatório",  desc: "Diagnóstico da turma e de cada aluno." },
+    ],
   },
 ];
 
@@ -75,30 +74,40 @@ export default function HomePage() {
         </p>
       </div>
 
-      {/* Ações rápidas */}
-      <h2 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Por onde começar</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {QUICK.map(({ href, Icon, label, desc, bg, border, text }) => (
-          <Link
-            key={href}
-            href={href}
-            className={`${bg} ${border} border rounded-xl p-5 hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col gap-2 group cursor-pointer`}
-          >
-            <Icon size={28} className={text} />
-            <span className={`font-semibold ${text} text-sm`}>{label}</span>
-            <span className="text-xs text-gray-600 leading-snug">{desc}</span>
-            <span className={`mt-auto pt-2 text-xs font-medium ${text} flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity`}>
-              Ir para esta etapa <ArrowRight size={14} />
-            </span>
-          </Link>
+      {/* Os dois caminhos */}
+      <h2 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Como você quer aplicar a prova?</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        {CAMINHOS.map(({ titulo, resumo, cor, passos }) => (
+          <section key={titulo} className={`${cor.bg} ${cor.border} border rounded-xl p-5`}>
+            <h3 className={`font-bold text-lg ${cor.text}`}>{titulo}</h3>
+            <p className="text-sm text-gray-700 mb-4">{resumo}</p>
+            <ol className="space-y-2">
+              {passos.map(({ href, Icon, label, desc }, i) => (
+                <li key={href + label}>
+                  <Link
+                    href={href}
+                    className="flex items-center gap-3 bg-white/80 hover:bg-white rounded-lg px-3 py-2.5 border border-white hover:shadow-sm transition-all group"
+                  >
+                    <span className={`w-7 h-7 shrink-0 rounded-full bg-white border ${cor.border} ${cor.text} font-bold text-sm flex items-center justify-center`}>
+                      {i + 1}
+                    </span>
+                    <Icon size={18} className={`${cor.text} shrink-0`} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-gray-900">{label}</span>
+                      <span className="block text-xs text-gray-600">{desc}</span>
+                    </span>
+                    <ArrowRight size={16} className="text-gray-400 group-hover:text-gray-700 shrink-0" />
+                  </Link>
+                </li>
+              ))}
+            </ol>
+          </section>
         ))}
       </div>
 
-      {/* Aviso importante (movido pra cima do "Suas turmas") */}
-      <div className="mb-10 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-lg text-sm text-amber-900">
-        <strong>⚠️ Importante:</strong> ao enviar uma prova para análise, lembre-se de
-        <strong> selecionar a turma correspondente</strong>. Sem essa vinculação, os relatórios
-        individuais dos alunos não serão gerados.
+      <div className="mb-10 p-4 bg-amber-50 border-l-4 border-amber-500 rounded-lg text-sm text-amber-900">
+        <strong>Importante:</strong> vincule sempre a prova à <strong>turma</strong> certa. Sem isso,
+        os relatórios individuais dos alunos não são gerados.
       </div>
 
       {/* Turmas */}

@@ -52,6 +52,22 @@ export interface Prova {
   criado_em: string;
 }
 
+/** Linha de GET /provas/online (provas criadas no editor). */
+export interface ProvaOnline {
+  id: number;
+  titulo: string;
+  disciplina: string;
+  serie: string;
+  status: ProvaStatus;
+  total_questoes: number;
+  tempo_limite_min?: number | null;
+  publicada_em?: string | null;
+  encerrada_em?: string | null;
+  criado_em: string;
+  turma_id?: number | null;
+  turma_nome?: string | null;
+}
+
 // Questão de prova manual (com alternativas inline e gabarito visível para professor)
 export interface QuestaoEdicao {
   id: number;

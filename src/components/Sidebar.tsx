@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Home, Users, Upload, ClipboardList, BarChart2, Settings, LogOut, X, PlusCircle,
+  Home, Users, Upload, ClipboardList, BarChart2, Settings, LogOut, X, PlusCircle, Smartphone,
   type LucideIcon,
 } from "lucide-react";
 import { getUser, logout, ROLE_LABEL } from "@/lib/auth";
@@ -15,15 +15,18 @@ interface NavItem {
   Icon: LucideIcon;
   exact: boolean;
   adminOnly: boolean;
+  secao?: string; // título mostrado antes do item
 }
 
+// Dois caminhos: prova online (aluno responde no celular) e prova impressa (OCR)
 const NAV: NavItem[] = [
   { href: "/",            label: "Início",                Icon: Home,          exact: true,  adminOnly: false },
   { href: "/turmas",      label: "Turmas e Alunos",       Icon: Users,         exact: false, adminOnly: false },
+  { href: "/provas",      label: "Minhas provas online",  Icon: Smartphone,    exact: false, adminOnly: false, secao: "Prova online" },
   { href: "/criar-prova", label: "Criar prova",           Icon: PlusCircle,    exact: false, adminOnly: false },
-  { href: "/analisar",    label: "Analisar Prova (OCR)",  Icon: Upload,        exact: false, adminOnly: false },
-  { href: "/lancar",      label: "Lançamento",            Icon: ClipboardList, exact: false, adminOnly: false },
-  { href: "/relatorio",   label: "Relatório do Professor",Icon: BarChart2,     exact: false, adminOnly: false },
+  { href: "/analisar",    label: "Analisar prova (OCR)",  Icon: Upload,        exact: false, adminOnly: false, secao: "Prova impressa" },
+  { href: "/lancar",      label: "Lançar respostas",      Icon: ClipboardList, exact: false, adminOnly: false },
+  { href: "/relatorio",   label: "Relatórios",            Icon: BarChart2,     exact: false, adminOnly: false, secao: "Resultados" },
   { href: "/admin",       label: "Administração",         Icon: Settings,      exact: false, adminOnly: true  },
 ];
 
@@ -70,22 +73,27 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {NAV.filter(n => !n.adminOnly || user?.role === "admin_geral" || user?.role === "admin_escolar")
-          .map(({ href, label, Icon, exact }) => {
+          .map(({ href, label, Icon, exact, secao }) => {
           const active = exact ? path === href : path.startsWith(href);
           return (
-            <Link
-              key={href}
-              href={href}
-              onClick={handleNavClick}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                active
-                  ? "bg-blue-700 text-white"
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-              }`}
-            >
-              <Icon size={18} className="flex-shrink-0" />
-              {label}
-            </Link>
+            <div key={href}>
+              {secao && (
+                <p className="px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">{secao}</p>
+              )}
+              <Link
+                href={href}
+                onClick={handleNavClick}
+                aria-current={active ? "page" : undefined}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  active
+                    ? "bg-blue-700 text-white"
+                    : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                }`}
+              >
+                <Icon size={18} className="flex-shrink-0" />
+                {label}
+              </Link>
+            </div>
           );
         })}
       </nav>

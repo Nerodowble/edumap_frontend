@@ -12,8 +12,12 @@ const STEPS = [
 export default function FlowBanner({ step }: { step: 1 | 2 | 3 | 4 }) {
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-        Fluxo de uso — EduMap
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+        Prova impressa — passo a passo
+        <span className="normal-case font-normal">
+          {" "}· prefere que os alunos respondam no celular?{" "}
+          <Link href="/provas" className="text-blue-700 underline">Use a prova online</Link>
+        </span>
       </p>
       <div className="flex items-start flex-wrap gap-1.5">
         {STEPS.map((s, i) => {

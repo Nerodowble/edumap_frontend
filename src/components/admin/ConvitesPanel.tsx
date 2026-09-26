@@ -159,7 +159,7 @@ export default function ConvitesPanel() {
             />
           </div>
           <div>
-            <label htmlFor="conv-validade" className="label">Validade (dias)</label>
+            <label htmlFor="conv-validade" className="label">Prazo para usar o convite (dias)</label>
             <input
               id="conv-validade"
               className="input"
@@ -222,7 +222,7 @@ export default function ConvitesPanel() {
                   <th className="text-left px-4 py-3">Perfil</th>
                   <th className="text-left px-4 py-3">Escola</th>
                   <th className="text-left px-4 py-3">Usos</th>
-                  <th className="text-left px-4 py-3">Expira em</th>
+                  <th className="text-left px-4 py-3">Prazo do convite</th>
                   <th className="text-left px-4 py-3">Situação</th>
                   <th className="text-right px-4 py-3">Ações</th>
                 </tr>
