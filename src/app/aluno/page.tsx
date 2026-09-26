@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { alunoLogin } from "@/lib/api";
+import { alunoLogin, errMsg, errStatus } from "@/lib/api";
 import { setAlunoToken, setAlunoSessao, isAlunoAutenticado } from "@/lib/alunoAuth";
 
 export default function AlunoLoginPage() {
@@ -32,11 +32,9 @@ export default function AlunoLoginPage() {
       setAlunoSessao(r.aluno);
       router.push("/aluno/provas");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao entrar.";
-      // Mensagem amigável para 401
-      setErro(msg.includes("401")
+      setErro(errStatus(err) === 401
         ? "Não encontramos você. Confira o nome completo e o R.A. com seu professor."
-        : msg);
+        : errMsg(err, "Não foi possível entrar. Tente de novo."));
     } finally {
       setLoading(false);
     }

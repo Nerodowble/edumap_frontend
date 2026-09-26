@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { alunoListarProvas, alunoIniciarProva } from "@/lib/api";
+import { alunoListarProvas, alunoIniciarProva, errMsg, errStatus } from "@/lib/api";
 import { getAlunoSessao, logoutAluno, isAlunoAutenticado } from "@/lib/alunoAuth";
 import type { ProvaEmAberto } from "@/lib/types";
 
@@ -16,6 +16,7 @@ export default function AlunoProvasPage() {
   const [pin, setPin] = useState("");
   const [erroPin, setErroPin] = useState("");
   const [iniciando, setIniciando] = useState(false);
+  const [erroLista, setErroLista] = useState("");
 
   useEffect(() => {
     if (!isAlunoAutenticado()) {
@@ -24,11 +25,25 @@ export default function AlunoProvasPage() {
     }
     const s = getAlunoSessao();
     if (s) setSessao({ nome: s.nome, ra: s.ra });
+    carregarProvas();
+  }, [router]);
+
+  // Fecha o modal do PIN com Esc
+  useEffect(() => {
+    if (!provaSelecionada) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setProvaSelecionada(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [provaSelecionada]);
+
+  function carregarProvas() {
+    setLoading(true);
+    setErroLista("");
     alunoListarProvas()
       .then(setProvas)
-      .catch(() => setProvas([]))
+      .catch(err => setErroLista(errMsg(err, "Não foi possível carregar suas provas.")))
       .finally(() => setLoading(false));
-  }, [router]);
+  }
 
   async function handleEntrar() {
     if (!provaSelecionada) return;
@@ -42,15 +57,15 @@ export default function AlunoProvasPage() {
       await alunoIniciarProva(provaSelecionada.id, pin.trim());
       router.push(`/aluno/prova/${provaSelecionada.id}`);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao iniciar.";
-      if (msg.includes("409")) {
+      const st = errStatus(err);
+      if (st === 409) {
         setErroPin("Esta prova já foi iniciada em outro dispositivo. Peça ao professor para liberar relogin.");
-      } else if (msg.includes("401")) {
+      } else if (st === 422) {
         setErroPin("PIN incorreto. Confira com o professor.");
-      } else if (msg.includes("403")) {
+      } else if (st === 403) {
         setErroPin("Você já finalizou esta prova ou ela não é da sua turma.");
       } else {
-        setErroPin(msg);
+        setErroPin(errMsg(err, "Não foi possível entrar na prova. Tente de novo."));
       }
     } finally {
       setIniciando(false);
@@ -88,7 +103,19 @@ export default function AlunoProvasPage() {
           <div className="text-gray-500">Carregando…</div>
         )}
 
-        {!loading && provasAbertas.length === 0 && provasFinalizadas.length === 0 && (
+        {!loading && erroLista && (
+          <div className="bg-white rounded-2xl border border-red-200 p-6 text-center" role="alert">
+            <p className="text-red-800 font-medium mb-3">{erroLista}</p>
+            <button
+              onClick={carregarProvas}
+              className="bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-blue-800"
+            >
+              Tentar de novo
+            </button>
+          </div>
+        )}
+
+        {!loading && !erroLista && provasAbertas.length === 0 && provasFinalizadas.length === 0 && (
           <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
             <p className="text-gray-700 font-medium mb-1">Nenhuma prova em aberto agora.</p>
             <p className="text-gray-500 text-sm">
@@ -150,13 +177,19 @@ export default function AlunoProvasPage() {
       {/* Modal PIN */}
       {provaSelecionada && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 animate-slide-in">
-            <h3 className="text-lg font-bold text-gray-900 mb-1">{provaSelecionada.titulo}</h3>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pin-titulo"
+            className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 animate-slide-in"
+          >
+            <h3 id="pin-titulo" className="text-lg font-bold text-gray-900 mb-1">{provaSelecionada.titulo}</h3>
             <p className="text-sm text-gray-600 mb-4">Digite o PIN que o professor mostrou.</p>
 
             <input
               type="text"
               inputMode="numeric"
+              aria-label="PIN da prova"
               maxLength={6}
               autoFocus
               value={pin}

@@ -142,7 +142,11 @@ export interface ProvaAlunoResp {
     tempo_limite_min?: number | null;
   };
   started_at: string;
+  /** Calculado no servidor (evita erro de fuso/formato de data no navegador). */
+  segundos_decorridos?: number;
   questoes: QuestaoParaAluno[];
+  /** Respostas já salvas no servidor: {questao_id: letra}. */
+  respostas?: Record<string, string>;
 }
 
 export interface BnccSkill {

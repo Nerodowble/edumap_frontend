@@ -40,6 +40,22 @@ export function errMsg(e: unknown, fallback: string): string {
   return fallback;
 }
 
+/** Status HTTP do erro (0 = sem conexão), ou undefined se não for ApiError. */
+export function errStatus(e: unknown): number | undefined {
+  return e instanceof ApiError ? e.status : undefined;
+}
+
+const MSG_SEM_CONEXAO = "Sem conexão com o servidor. Verifique sua internet e tente de novo.";
+
+/** fetch que converte falha de rede ("Failed to fetch") em ApiError status 0. */
+async function fetchApi(path: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(`${BASE}${path}`, init);
+  } catch {
+    throw new ApiError(0, MSG_SEM_CONEXAO, MSG_SEM_CONEXAO);
+  }
+}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
@@ -47,7 +63,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${BASE}${path}`, { ...init, headers });
+  const res = await fetchApi(path, { ...init, headers });
 
   // 401 em /auth/* é credencial errada, não sessão expirada
   if (res.status === 401 && !path.startsWith("/auth/")) {
@@ -493,19 +509,18 @@ async function reqAluno<T>(path: string, init?: RequestInit): Promise<T> {
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${BASE}${path}`, { ...init, headers });
+  const res = await fetchApi(path, { ...init, headers });
 
-  if (res.status === 401) {
+  // 401 em /aluno/auth é nome/R.A. errado — não é sessão expirada
+  if (res.status === 401 && path !== "/aluno/auth") {
     removeAlunoToken();
-    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/aluno")) {
+    if (typeof window !== "undefined" && window.location.pathname !== "/aluno") {
       window.location.href = "/aluno";
     }
-    throw new Error("Sessão expirada.");
+    const msg = "Sua sessão expirou. Entre novamente com seu nome e R.A.";
+    throw new ApiError(401, msg, msg);
   }
-  if (!res.ok) {
-    const msg = await res.text().catch(() => res.statusText);
-    throw new Error(`[${res.status}] ${path}: ${msg}`);
-  }
+  if (!res.ok) throw await toApiError(res, path);
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
