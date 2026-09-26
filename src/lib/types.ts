@@ -268,6 +268,24 @@ export interface UsuarioAdmin {
   criado_em: string;
 }
 
+export interface Convite {
+  id: number;
+  codigo: string;
+  role: "professor" | "admin_escolar";
+  escola: string | null;
+  usos_max: number;
+  usos: number;
+  expira_em: string; // ISO-8601 UTC
+  ativo: number;
+  status: "ativo" | "expirado" | "esgotado" | "desativado";
+  criado_por_nome?: string | null;
+  criado_em: string;
+}
+
+export type ConviteValidacao =
+  | { valido: true; role: "professor" | "admin_escolar"; escola: string }
+  | { valido: false };
+
 export interface EscolaAgg {
   escola: string;
   usuarios: number;

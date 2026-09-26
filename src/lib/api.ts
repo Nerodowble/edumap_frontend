@@ -5,7 +5,7 @@ import type {
   UsuarioAdmin, EscolaAgg, TaxonomiaNoFlat, TaxonomiaStats,
   ProvaAdmin, ProvaEdicaoResp, MonitorProvaResp,
   AlunoSessao, ProvaEmAberto, ProvaAlunoResp,
-  TurmaContexto,
+  TurmaContexto, Convite, ConviteValidacao,
 } from "./types";
 import { getToken, removeToken } from "./auth";
 import { getAlunoToken, removeAlunoToken } from "./alunoAuth";
@@ -14,6 +14,31 @@ const BASE =
   typeof window !== "undefined"
     ? (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000")
     : (process.env.API_URL ?? "http://localhost:8000");
+
+/** Erro de API com status HTTP e a mensagem `detail` do backend (se houver).
+ *  `message` mantém o formato "[status] path: corpo" usado por telas antigas. */
+export class ApiError extends Error {
+  constructor(public status: number, public detail: string, message: string) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+async function toApiError(res: Response, path: string): Promise<ApiError> {
+  const body = await res.text().catch(() => res.statusText);
+  let detail = "";
+  try {
+    const d = JSON.parse(body)?.detail;
+    if (typeof d === "string") detail = d;
+  } catch { /* corpo não-JSON */ }
+  return new ApiError(res.status, detail, `[${res.status}] ${path}: ${body}`);
+}
+
+/** Mensagem legível para o usuário: `detail` do backend ou o fallback. */
+export function errMsg(e: unknown, fallback: string): string {
+  if (e instanceof ApiError && e.detail) return e.detail;
+  return fallback;
+}
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken();
@@ -24,20 +49,21 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 
   const res = await fetch(`${BASE}${path}`, { ...init, headers });
 
-  if (res.status === 401) {
+  // 401 em /auth/* é credencial errada, não sessão expirada
+  if (res.status === 401 && !path.startsWith("/auth/")) {
     removeToken();
     if (typeof window !== "undefined") window.location.href = "/login";
-    throw new Error("Sessão expirada.");
+    throw new ApiError(401, "Sessão expirada.", "Sessão expirada.");
   }
-  if (!res.ok) {
-    const msg = await res.text().catch(() => res.statusText);
-    throw new Error(`[${res.status}] ${path}: ${msg}`);
-  }
+  if (!res.ok) throw await toApiError(res, path);
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-export const register = (data: { nome: string; email: string; senha: string; escola: string }) =>
+export const register = (data: {
+  nome: string; email: string; senha: string; escola: string; codigo_convite: string;
+}) =>
   req<{ token: string; role: string; nome: string }>("/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -212,6 +238,24 @@ export const adminUpdateUsuario = (
 
 export const adminDeleteUsuario = (id: number) =>
   req<void>(`/admin/usuarios/${id}`, { method: "DELETE" });
+
+// ── Convites ──────────────────────────────────────────────────────────────────
+export const validarConvite = (codigo: string) =>
+  req<ConviteValidacao>(`/convites/${encodeURIComponent(codigo.trim())}`);
+
+export const adminListConvites = () => req<Convite[]>("/admin/convites");
+
+export const adminCriarConvite = (data: {
+  role: "professor" | "admin_escolar"; escola: string; usos_max: number; validade_dias: number;
+}) =>
+  req<Convite>("/admin/convites", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+export const adminDesativarConvite = (id: number) =>
+  req<Convite>(`/admin/convites/${id}`, { method: "DELETE" });
 
 export const adminListEscolas = () =>
   req<EscolaAgg[]>("/admin/escolas");

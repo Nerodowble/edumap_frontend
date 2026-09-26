@@ -17,28 +17,51 @@ import {
   type EtapaInfo,
 } from "@/lib/api";
 import { useToast } from "@/components/Toast";
+import ConvitesPanel from "@/components/admin/ConvitesPanel";
 import type {
   UsuarioAdmin, EscolaAgg, TaxonomiaStats, TaxonomiaNoFlat,
   ProvaAdmin,
 } from "@/lib/types";
 
-type Tab = "usuarios" | "escolas" | "provas" | "taxonomia";
+type Tab = "usuarios" | "convites" | "escolas" | "provas" | "taxonomia";
+
+const TABS_ADMIN_GERAL: [Tab, string][] = [
+  ["usuarios",  "👥 Usuários"],
+  ["convites",  "✉️ Convites"],
+  ["escolas",   "🏫 Escolas"],
+  ["provas",    "📄 Provas"],
+  ["taxonomia", "🗺️ Taxonomia"],
+];
 
 export default function AdminPage() {
   const router = useRouter();
   const [checked, setChecked] = useState(false);
+  const [ehAdminGeral, setEhAdminGeral] = useState(false);
   const [tab, setTab] = useState<Tab>("usuarios");
 
   useEffect(() => {
     const u = getUser();
-    if (!u || u.role !== "admin_geral") {
+    if (!u || (u.role !== "admin_geral" && u.role !== "admin_escolar")) {
       router.replace("/");
-    } else {
-      setChecked(true);
+      return;
     }
+    // admin_escolar só gerencia convites da própria escola
+    setEhAdminGeral(u.role === "admin_geral");
+    if (u.role !== "admin_geral") setTab("convites");
+    setChecked(true);
   }, [router]);
 
   if (!checked) return null;
+
+  if (!ehAdminGeral) {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-1">✉️ Convites</h1>
+        <p className="text-gray-500 mb-5">Convide professores da sua escola para usar o EduMap.</p>
+        <ConvitesPanel />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -46,12 +69,7 @@ export default function AdminPage() {
       <p className="text-gray-500 mb-5">Área restrita ao administrador geral.</p>
 
       <div className="flex gap-2 mb-6 flex-wrap">
-        {([
-          ["usuarios",  "👥 Usuários"],
-          ["escolas",   "🏫 Escolas"],
-          ["provas",    "📄 Provas"],
-          ["taxonomia", "🗺️ Taxonomia"],
-        ] as [Tab, string][]).map(([t, label]) => (
+        {TABS_ADMIN_GERAL.map(([t, label]) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -63,6 +81,7 @@ export default function AdminPage() {
       </div>
 
       {tab === "usuarios" && <UsuariosPanel />}
+      {tab === "convites" && <ConvitesPanel />}
       {tab === "escolas" && <EscolasPanel />}
       {tab === "provas" && <ProvasPanel />}
       {tab === "taxonomia" && <TaxonomiaPanel />}

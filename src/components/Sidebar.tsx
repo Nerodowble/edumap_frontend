@@ -69,7 +69,8 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {NAV.filter(n => !n.adminOnly || user?.role === "admin_geral").map(({ href, label, Icon, exact }) => {
+        {NAV.filter(n => !n.adminOnly || user?.role === "admin_geral" || user?.role === "admin_escolar")
+          .map(({ href, label, Icon, exact }) => {
           const active = exact ? path === href : path.startsWith(href);
           return (
             <Link
