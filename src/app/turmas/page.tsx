@@ -583,7 +583,7 @@ function TurmaRow({ turma, open, onToggle, onChanged }: TurmaRowProps) {
                           )}
                           <button
                             onClick={() => { setEditingAlunoId(a.id); setEditAlunoNome(a.nome); setEditAlunoRa(a.ra ?? ""); }}
-                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 p-1 transition-opacity"
+                            className="md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 text-gray-500 hover:text-blue-600 p-2 transition-opacity"
                             title="Editar aluno"
                             aria-label="Editar aluno"
                           >
@@ -591,7 +591,7 @@ function TurmaRow({ turma, open, onToggle, onChanged }: TurmaRowProps) {
                           </button>
                           <button
                             onClick={() => handleDeleteAluno(a)}
-                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 p-1 transition-opacity"
+                            className="md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 text-gray-500 hover:text-red-600 p-2 transition-opacity"
                             title="Remover aluno"
                             aria-label="Remover aluno"
                           >
@@ -628,8 +628,13 @@ function TurmaRow({ turma, open, onToggle, onChanged }: TurmaRowProps) {
                           </div>
                         </div>
                         {podeMonitorar && (
-                          <Link href={`/aplicar/${p.id}`} className="text-xs text-blue-700 hover:underline flex items-center gap-1 mt-0.5">
-                            <Play size={10} /> Monitor
+                          <Link href={`/aplicar/${p.id}`} className="text-sm text-blue-700 hover:underline flex items-center gap-1 px-2 py-1 -my-1">
+                            <Play size={12} /> Monitor
+                          </Link>
+                        )}
+                        {status === "rascunho" && p.origem === "manual" && (
+                          <Link href={`/criar-prova?id=${p.id}`} className="text-sm text-blue-700 hover:underline flex items-center gap-1 px-2 py-1 -my-1">
+                            <Pencil size={12} /> Continuar editando
                           </Link>
                         )}
                       </div>

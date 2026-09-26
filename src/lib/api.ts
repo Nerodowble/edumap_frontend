@@ -440,6 +440,19 @@ export const criarProvaManual = (data: {
     body: JSON.stringify(data),
   });
 
+export const atualizarProvaManual = (provaId: number, data: {
+  titulo: string;
+  turma_id?: number | null;
+  disciplina?: string;
+  serie?: string;
+  tempo_limite_min?: number | null;
+}) =>
+  req<Prova>(`/provas/${provaId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
 export const getProvaEdicao = (provaId: number) =>
   req<ProvaEdicaoResp>(`/provas/${provaId}/edicao`);
 

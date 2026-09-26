@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, ArrowLeft, CheckCircle2, Send, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import {
-  getTurmas, criarProvaManual, getProvaEdicao,
+  getTurmas, criarProvaManual, atualizarProvaManual, getProvaEdicao,
   addQuestaoManual, updateQuestaoManual, deleteQuestao, publicarProva,
-  getTurmaContexto,
+  getTurmaContexto, errMsg,
 } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import { SUBJECT_GROUPS, YEAR_GROUPS, BLOOM_NAMES, BLOOM_COLORS } from "@/lib/constants";
@@ -91,6 +91,30 @@ export default function CriarProvaPage() {
     getTurmas().then(setTurmas).catch(() => {});
   }, []);
 
+  // Retomar rascunho: /criar-prova?id=123
+  useEffect(() => {
+    const id = Number(new URLSearchParams(window.location.search).get("id"));
+    if (!id) return;
+    getProvaEdicao(id)
+      .then(({ prova, questoes: qs }) => {
+        if (prova.status && prova.status !== "rascunho") {
+          toast.warn("Esta prova já foi publicada e não pode mais ser editada.");
+          router.replace(`/aplicar/${prova.id}`);
+          return;
+        }
+        setProvaId(prova.id);
+        setTitulo(prova.titulo || "");
+        setTurmaId(prova.turma_id ? String(prova.turma_id) : "");
+        setDisciplina(prova.disciplina || "");
+        setSerie(prova.serie || "");
+        setTempoLimite(prova.tempo_limite_min ? String(prova.tempo_limite_min) : "");
+        setQuestoes(qs);
+        setEtapa("questoes");
+      })
+      .catch(err => toast.err(errMsg(err, "Não foi possível abrir o rascunho.")));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function resetForm() {
     setShowForm(false);
     setEditingId(null);
@@ -104,22 +128,43 @@ export default function CriarProvaPage() {
 
   async function salvarMetadados() {
     if (!titulo.trim()) { toast.err("Dê um título à prova."); return; }
+    if (!turmaId) { toast.err("Escolha a turma que vai fazer a prova."); return; }
+    const dados = {
+      titulo: titulo.trim(),
+      turma_id: Number(turmaId),
+      disciplina,
+      serie,
+      tempo_limite_min: tempoLimite ? Number(tempoLimite) : null,
+    };
     setSavingMeta(true);
     try {
-      const prova = await criarProvaManual({
-        titulo: titulo.trim(),
-        turma_id: turmaId ? Number(turmaId) : null,
-        disciplina,
-        serie,
-        tempo_limite_min: tempoLimite ? Number(tempoLimite) : null,
-      });
-      setProvaId(prova.id);
+      if (provaId) {
+        // Voltou para corrigir: atualiza a MESMA prova (antes criava outra e perdia as questões)
+        await atualizarProvaManual(provaId, dados);
+        toast.ok("Informações atualizadas.");
+      } else {
+        const prova = await criarProvaManual(dados);
+        setProvaId(prova.id);
+        window.history.replaceState(null, "", `/criar-prova?id=${prova.id}`);
+        toast.ok("Prova criada! Agora adicione as questões.");
+      }
       setEtapa("questoes");
-      toast.ok("Prova criada! Agora adicione as questões.");
     } catch (err) {
-      toast.err(err instanceof Error ? err.message : "Erro ao criar prova.");
+      toast.err(errMsg(err, "Não foi possível salvar a prova."));
     } finally {
       setSavingMeta(false);
+    }
+  }
+
+  /** Remove a alternativa i mantendo o gabarito apontando para o mesmo TEXTO. */
+  function removerAlternativa(i: number) {
+    const gabIdx = qGabarito.charCodeAt(0) - 65;
+    setQAlternativas(qAlternativas.filter((_, j) => j !== i));
+    if (gabIdx === i) {
+      setQGabarito("A");
+      toast.warn("Você removeu a alternativa do gabarito. Marque a resposta correta novamente.");
+    } else if (gabIdx > i) {
+      setQGabarito(String.fromCharCode(65 + gabIdx - 1));
     }
   }
 
@@ -141,7 +186,12 @@ export default function CriarProvaPage() {
   async function salvarQuestao() {
     if (!provaId) return;
     if (!qStem.trim()) { toast.err("Escreva o enunciado."); return; }
-    const alts = qTipo === "verdadeiro_falso" ? [] : qAlternativas.map(a => a.trim()).filter(Boolean);
+    // Não filtra vazias: remover uma do meio deslocaria as letras e trocaria o gabarito sem aviso
+    const alts = qTipo === "verdadeiro_falso" ? [] : qAlternativas.map(a => a.trim());
+    if (qTipo === "multipla_escolha" && alts.some(a => !a)) {
+      toast.err("Preencha todas as alternativas ou remova as que estiverem vazias.");
+      return;
+    }
     if (qTipo === "multipla_escolha" && alts.length < 2) {
       toast.err("Adicione pelo menos 2 alternativas.");
       return;
@@ -229,7 +279,7 @@ export default function CriarProvaPage() {
       <p className="text-gray-500 mb-6">Monte sua prova questão por questão. Quando estiver pronta, publique com um PIN.</p>
 
       {/* Stepper */}
-      <div className="flex items-center gap-2 mb-6 text-sm">
+      <div className="flex flex-wrap items-center gap-2 mb-6 text-sm">
         {(["metadados", "questoes", "publicar"] as Etapa[]).map((e, i) => {
           const ativo = etapa === e;
           const passado = (["metadados", "questoes", "publicar"] as Etapa[]).indexOf(etapa) > i;
@@ -242,7 +292,8 @@ export default function CriarProvaPage() {
               }`}>
                 {passado ? "✓" : i + 1}
               </div>
-              <span className={ativo ? "font-semibold text-gray-900" : "text-gray-500"}>
+              {/* No celular só o passo atual mostra o nome (evita rolagem horizontal) */}
+              <span className={ativo ? "font-semibold text-gray-900" : "text-gray-500 hidden sm:inline"}>
                 {e === "metadados" ? "Informações" : e === "questoes" ? "Questões" : "Publicar"}
               </span>
               {i < 2 && <span className="text-gray-300 mx-1">—</span>}
@@ -257,15 +308,15 @@ export default function CriarProvaPage() {
           <h2 className="font-semibold text-gray-900 mb-4">1. Informações básicas</h2>
           <div className="space-y-4">
             <div>
-              <label className="label">Título da prova</label>
-              <input className="input" placeholder="Ex: Avaliação - Comércio Exterior - Módulo 3"
+              <label htmlFor="cp-titulo" className="label">Título da prova</label>
+              <input id="cp-titulo" className="input" placeholder="Ex: Avaliação - Comércio Exterior - Módulo 3"
                 value={titulo} onChange={e => setTitulo(e.target.value)} autoFocus />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="label">Turma <span className="text-red-600">*</span></label>
-                <select className="input" value={turmaId} onChange={e => setTurmaId(e.target.value)} required>
+                <label htmlFor="cp-turma" className="label">Turma <span className="text-red-700">*</span></label>
+                <select id="cp-turma" className="input" value={turmaId} onChange={e => setTurmaId(e.target.value)} required>
                   <option value="">— Selecione —</option>
                   {turmas.map(t => (
                     <option key={t.id} value={t.id}>
@@ -285,16 +336,17 @@ export default function CriarProvaPage() {
                 )}
               </div>
               <div>
-                <label className="label">Tempo limite (minutos, opcional)</label>
-                <input className="input" type="number" inputMode="numeric" min={1} placeholder="60"
+                <label htmlFor="cp-tempo" className="label">Tempo limite (minutos, opcional)</label>
+                <input id="cp-tempo" className="input" type="number" inputMode="numeric" min={1} placeholder="60"
                   value={tempoLimite} onChange={e => setTempoLimite(e.target.value)} />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="label">Disciplina</label>
+                <label htmlFor="cp-disciplina" className="label">Disciplina</label>
                 <select
+                  id="cp-disciplina"
                   className="input"
                   value={disciplina}
                   onChange={e => setDisciplina(e.target.value)}
@@ -317,8 +369,9 @@ export default function CriarProvaPage() {
                 </select>
               </div>
               <div>
-                <label className="label">Série / Módulo</label>
+                <label htmlFor="cp-serie" className="label">Série / Módulo</label>
                 <select
+                  id="cp-serie"
                   className="input"
                   value={serie}
                   onChange={e => setSerie(e.target.value)}
@@ -475,8 +528,8 @@ export default function CriarProvaPage() {
                             }}
                           />
                           {qAlternativas.length > 2 && (
-                            <button type="button" onClick={() => setQAlternativas(qAlternativas.filter((_, j) => j !== i))}
-                              className="text-red-600 hover:text-red-700" aria-label="Remover alternativa">
+                            <button type="button" onClick={() => removerAlternativa(i)}
+                              className="text-red-600 hover:text-red-700 p-2" aria-label={`Remover alternativa ${letra}`}>
                               <Trash2 size={16} />
                             </button>
                           )}
